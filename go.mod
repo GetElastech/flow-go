@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	cloud.google.com/go/storage v1.16.0
-	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
 	github.com/antihax/optional v1.0.0
 	github.com/aws/aws-sdk-go-v2/config v1.8.0
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.5.1
@@ -21,6 +20,7 @@ require (
 	github.com/ethereum/go-ethereum v1.9.13
 	github.com/fxamacker/cbor/v2 v2.3.1-0.20211029162100-5d5d7c3edd41
 	github.com/gammazero/workerpool v1.1.2
+	github.com/globalsign/mgo v0.0.0-20180905125535-1ca0a4f7cbcb // indirect
 	github.com/go-openapi/strfmt v0.21.2 // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
@@ -51,6 +51,7 @@ require (
 	github.com/libp2p/go-libp2p-discovery v0.6.0
 	github.com/libp2p/go-libp2p-kad-dht v0.15.0
 	github.com/libp2p/go-libp2p-pubsub v0.6.0
+	github.com/libp2p/go-libp2p-quic-transport v0.15.0 // indirect
 	github.com/libp2p/go-libp2p-swarm v0.8.0
 	github.com/libp2p/go-libp2p-tls v0.3.1
 	github.com/libp2p/go-libp2p-transport-upgrader v0.5.0
@@ -84,6 +85,7 @@ require (
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.1-0.20210824115523-ab6dc3262822
 	github.com/uber/jaeger-client-go v2.29.1+incompatible
+	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/vmihailenco/msgpack/v4 v4.3.11
 	go.uber.org/atomic v1.9.0
