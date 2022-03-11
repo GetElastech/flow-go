@@ -214,7 +214,7 @@ func prepareNodes() []testnet.NodeConfig {
 
 	for i := 0; i < observerCount; i++ {
 		// TODO use RoleObserver
-		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
+		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleObserver, func(cfg *testnet.NodeConfig) {
 			cfg.SupportsUnstakedNodes = true
 		}))
 	}

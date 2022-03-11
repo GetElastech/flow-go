@@ -23,7 +23,7 @@ const (
 )
 
 func (r Role) Valid() bool {
-	return r >= 1 && r <= 5
+	return r >= 1 && r <= 6
 }
 
 // String returns a string version of role.

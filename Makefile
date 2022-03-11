@@ -246,18 +246,15 @@ docker-build-access:
 	docker build -f cmd/Dockerfile  --build-arg TARGET=access --build-arg COMMIT=$(COMMIT)  --build-arg VERSION=$(IMAGE_TAG) --build-arg GOARCH=$(GOARCH) --target production \
 		-t "$(CONTAINER_REGISTRY)/access:latest" -t "$(CONTAINER_REGISTRY)/access:$(SHORT_COMMIT)" -t "$(CONTAINER_REGISTRY)/access:$(IMAGE_TAG)" .
 
+.PHONY: docker-build-observer
+docker-build-observer:
+	docker build -f cmd/Dockerfile  --build-arg TARGET=observer --build-arg COMMIT=$(COMMIT)  --build-arg VERSION=$(IMAGE_TAG) --build-arg GOARCH=$(GOARCH) --target production \
+		-t "$(CONTAINER_REGISTRY)/observer:latest" -t "$(CONTAINER_REGISTRY)/observer:$(SHORT_COMMIT)" -t "$(CONTAINER_REGISTRY)/observer:$(IMAGE_TAG)" .
+
 .PHONY: docker-build-access-debug
 docker-build-access-debug:
 	docker build -f cmd/Dockerfile  --build-arg TARGET=access  --build-arg COMMIT=$(COMMIT) --build-arg VERSION=$(IMAGE_TAG) --build-arg GOARCH=$(GOARCH) --target debug \
 		-t "$(CONTAINER_REGISTRY)/access-debug:latest" -t "$(CONTAINER_REGISTRY)/access-debug:$(SHORT_COMMIT)" -t "$(CONTAINER_REGISTRY)/access-debug:$(IMAGE_TAG)" .
-
-# Observer is currently simply access node, this target is added for compatibility with deployment pipeline
-# Once proper observer is separated in the code, we should just need to change TARGET parameter below
-.PHONY: docker-build-observer
-docker-build-observer:
-	docker build -f cmd/Dockerfile  --build-arg TARGET=access --build-arg COMMIT=$(COMMIT)  --build-arg VERSION=$(IMAGE_TAG) --build-arg GOARCH=$(GOARCH) --target production \
-		-t "$(CONTAINER_REGISTRY)/observer:latest" -t "$(CONTAINER_REGISTRY)/observer:$(SHORT_COMMIT)" -t "$(CONTAINER_REGISTRY)/observer:$(IMAGE_TAG)" .
-
 
 .PHONY: docker-build-ghost
 docker-build-ghost:
@@ -438,3 +435,37 @@ monitor-rollout:
 	kubectl --kubeconfig=$$kconfig rollout status statefulsets.apps flow-consensus-node-v1; \
 	kubectl --kubeconfig=$$kconfig rollout status statefulsets.apps flow-execution-node-v1; \
 	kubectl --kubeconfig=$$kconfig rollout status statefulsets.apps flow-verification-node-v1
+
+#export GOROOT=/usr/local/go
+#export GOPATH=/root/stable/gopath
+#export GOBIN=/usr/local/go/bin
+#export PATH=/usr/local/go/bin:$PATH
+
+.PHONY: install-centos-prerequisites
+install-centos-prerequisites:
+	# Prerequisites for CentOS based distributions like CentOS, Redhat, Oracle Enterprise Linux, Suse Linux Enterprise
+	which yum && yum install -y git cmake gcc-c++ || true
+	which dnf && dnf install -y dnf-utils zip unzip || true
+	which dnf && dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo || true
+	which dnf && dnf install -y docker-ce --nobest || true
+	systemctl enable docker.service || true
+	systemctl start docker.service || true
+	curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+	git submodule update --init --recursive
+	curl -L https://go.dev/dl/go1.16.14.linux-amd64.tar.gz --output go1.16.14.linux-amd64.tar.gz
+	rm -rf /usr/local/go && tar -C /usr/local -xzf go1.16.14.linux-amd64.tar.gz && rm -f go1.16.14.linux-amd64.tar.gz
+	rm -rf crypto/relic && make install-tools
+	pushd integration && make access-tests; popd
+
+.PHONY: install-debian-prerequisites
+install-debian-prerequisites:
+	# Prerequisites for Debian based distributions like Debian, Ubuntu, Mint
+	apt install -y binutils gcc build-essential zip git cmake mockery mockgen
+	git submodule update --init --recursive
+	rm -rf crypto/relic && make install-tools
+	curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+	git submodule update --init --recursive
+	curl -L https://go.dev/dl/go1.16.14.linux-amd64.tar.gz --output go1.16.14.linux-amd64.tar.gz
+	rm -rf /usr/local/go && tar -C /usr/local -xzf go1.16.14.linux-amd64.tar.gz && rm -f go1.16.14.linux-amd64.tar.gz
+	rm -rf crypto/relic && make install-tools
+	pushd integration && make access-tests; popd
