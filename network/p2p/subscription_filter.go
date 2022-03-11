@@ -41,7 +41,7 @@ func (f *RoleBasedFilter) allowed(role flow.Role, topic string) bool {
 		return false
 	}
 
-	if !role.Valid() {
+	if !role.RoleValid() {
 		// TODO: eventually we should have block proposals relayed on a separate
 		// channel on the public network. For now, we need to make sure that
 		// full observer nodes can subscribe to the block proposal channel.

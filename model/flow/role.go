@@ -22,7 +22,7 @@ const (
 	RoleObserver     Role = 6
 )
 
-func (r Role) Valid() bool {
+func (r Role) RoleValid() bool {
 	return r >= 1 && r <= 6
 }
 

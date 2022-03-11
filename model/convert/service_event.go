@@ -257,7 +257,7 @@ func convertParticipants(cdcParticipants []cadence.Value) (flow.IdentityList, er
 			return nil, invalidCadenceTypeError("nodeInfo.role", cdcNodeInfoFields[1], cadence.UInt8(0))
 		}
 		identity.Role = flow.Role(role)
-		if !identity.Role.Valid() {
+		if !identity.Role.RoleValid() {
 			return nil, fmt.Errorf("invalid role %d", role)
 		}
 
