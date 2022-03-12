@@ -22,8 +22,8 @@ const (
 	RoleObserver     Role = 6
 )
 
-func (r Role) RoleValid() bool {
-	return r >= 1 && r <= 6
+func (r Role) Valid() bool {
+	return r >= 1 && r <= 5
 }
 
 // String returns a string version of role.

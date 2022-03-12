@@ -46,7 +46,7 @@ All configuration is optional.
 Specify the number of nodes for each role:
 
 ```sh
-make -e COLLECTION=2 CONSENSUS=5 EXECUTION=3 VERIFICATION=2 ACCESS=2 init
+make -e COLLECTION=2 CONSENSUS=5 EXECUTION=3 VERIFICATION=2 ACCESS=2 OBSERVER=1 init
 ```
 
 Specify the number of collector clusters:

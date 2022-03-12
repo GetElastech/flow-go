@@ -403,6 +403,10 @@ func Sort(nodes []NodeInfo, order flow.IdentityOrder) []NodeInfo {
 func ToIdentityList(nodes []NodeInfo) flow.IdentityList {
 	il := make(flow.IdentityList, 0, len(nodes))
 	for _, node := range nodes {
+		// TODO Observer does not participate
+		if node.Role == flow.RoleObserver {
+			continue
+		}
 		il = append(il, node.Identity())
 	}
 	return il

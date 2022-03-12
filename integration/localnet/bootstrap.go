@@ -30,13 +30,14 @@ const (
 	DefaultExecutionCount      = 1
 	DefaultVerificationCount   = 1
 	DefaultAccessCount         = 1
-	DefaultObserverCount       = 1
+	DefaultObserverCount       = 0
 	DefaultUnstakedAccessCount = 0
 	DefaultNClusters           = 1
 	DefaultProfiler            = false
 	DefaultConsensusDelay      = 800 * time.Millisecond
 	DefaultCollectionDelay     = 950 * time.Millisecond
 	AccessAPIPort              = 3569
+	ObserverAPIPort            = 3769
 	ExecutionAPIPort           = 3600
 	MetricsPort                = 8080
 	RPCPort                    = 9000
@@ -212,15 +213,14 @@ func prepareNodes() []testnet.NodeConfig {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess))
 	}
 
-	for i := 0; i < observerCount; i++ {
-		// TODO use RoleObserver
-		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleObserver, func(cfg *testnet.NodeConfig) {
+	for i := 0; i < unstakedAccessCount; i++ {
+		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
 			cfg.SupportsUnstakedNodes = true
 		}))
 	}
 
-	for i := 0; i < unstakedAccessCount; i++ {
-		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
+	for i := 0; i < observerCount; i++ {
+		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleObserver, func(cfg *testnet.NodeConfig) {
 			cfg.SupportsUnstakedNodes = true
 		}))
 	}
@@ -265,6 +265,7 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 		numExecution    = 0
 		numVerification = 0
 		numAccess       = 0
+		numObserver     = 0
 	)
 
 	for n, container := range containers {
@@ -292,6 +293,9 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 		case flow.RoleAccess:
 			services[container.ContainerName] = prepareAccessService(container, numAccess, n)
 			numAccess++
+		case flow.RoleObserver:
+			services[container.ContainerName] = prepareObserverService(container, numObserver, n)
+			numObserver++
 		}
 	}
 
@@ -346,7 +350,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 	}
 
 	// TODO: having trouble enabling admin tool for access node. skip Access node for now.
-	if container.Role != flow.RoleAccess {
+	if container.Role != flow.RoleAccess && container.Role != flow.RoleObserver {
 		service.Command = append(service.Command, fmt.Sprintf("--admin-addr=:%v", AdminToolPort))
 	}
 
@@ -374,6 +378,10 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		service.DependsOn = []string{
 			fmt.Sprintf("%s_1", container.Role),
 		}
+	}
+
+	if container.Role == flow.RoleObserver {
+		service.DependsOn = []string{}
 	}
 
 	return service
@@ -497,6 +505,27 @@ func prepareAccessService(container testnet.ContainerConfig, i int, n int) Servi
 	return service
 }
 
+func prepareObserverService(container testnet.ContainerConfig, i int, n int) Service {
+	service := prepareService(container, i, n)
+
+	service.Command = append(service.Command, []string{
+		fmt.Sprintf("--rpc-addr=%s:%d", container.ContainerName, RPCPort),
+		fmt.Sprintf("--secure-rpc-addr=%s:%d", container.ContainerName, SecuredRPCPort),
+		fmt.Sprintf("--http-addr=%s:%d", container.ContainerName, HTTPPort),
+		fmt.Sprintf("--collection-ingress-port=%d", RPCPort),
+		"--log-tx-time-to-finalized",
+		"--log-tx-time-to-executed",
+		"--log-tx-time-to-finalized-executed",
+	}...)
+
+	service.Ports = []string{
+		fmt.Sprintf("%d:%d", ObserverAPIPort+2*i, RPCPort),
+		fmt.Sprintf("%d:%d", ObserverAPIPort+(2*i+1), SecuredRPCPort),
+	}
+
+	return service
+}
+
 func writeDockerComposeConfig(services Services) error {
 	f, err := openAndTruncate(DockerComposeFile)
 	if err != nil {
@@ -544,6 +573,7 @@ func prepareServiceDiscovery(containers []testnet.ContainerConfig) PrometheusSer
 		flow.RoleExecution:    newPrometheusTargetList(flow.RoleExecution),
 		flow.RoleVerification: newPrometheusTargetList(flow.RoleVerification),
 		flow.RoleAccess:       newPrometheusTargetList(flow.RoleAccess),
+		flow.RoleObserver:     newPrometheusTargetList(flow.RoleObserver),
 	}
 
 	for _, container := range containers {
@@ -559,6 +589,7 @@ func prepareServiceDiscovery(containers []testnet.ContainerConfig) PrometheusSer
 		targets[flow.RoleExecution],
 		targets[flow.RoleVerification],
 		targets[flow.RoleAccess],
+		targets[flow.RoleObserver],
 	}
 }
 
