@@ -9,13 +9,12 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/plus3it/gorecurcopy"
-	"gopkg.in/yaml.v2"
-
 	"github.com/onflow/flow-go/cmd/build"
 	"github.com/onflow/flow-go/integration/testnet"
 	"github.com/onflow/flow-go/model/bootstrap"
 	"github.com/onflow/flow-go/model/flow"
+	"github.com/plus3it/gorecurcopy"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -31,12 +30,14 @@ const (
 	DefaultExecutionCount      = 1
 	DefaultVerificationCount   = 1
 	DefaultAccessCount         = 1
+	DefaultObserverCount       = 0
 	DefaultUnstakedAccessCount = 0
 	DefaultNClusters           = 1
 	DefaultProfiler            = false
 	DefaultConsensusDelay      = 800 * time.Millisecond
 	DefaultCollectionDelay     = 950 * time.Millisecond
 	AccessAPIPort              = 3569
+	ObserverAPIPort            = 3769
 	ExecutionAPIPort           = 3600
 	MetricsPort                = 8080
 	RPCPort                    = 9000
@@ -52,6 +53,7 @@ var (
 	executionCount         int
 	verificationCount      int
 	accessCount            int
+	observerCount          int
 	unstakedAccessCount    int
 	nClusters              uint
 	numViewsInStakingPhase uint64
@@ -68,6 +70,7 @@ func init() {
 	flag.IntVar(&executionCount, "execution", DefaultExecutionCount, "number of execution nodes")
 	flag.IntVar(&verificationCount, "verification", DefaultVerificationCount, "number of verification nodes")
 	flag.IntVar(&accessCount, "access", DefaultAccessCount, "number of staked access nodes")
+	flag.IntVar(&observerCount, "observer", DefaultObserverCount, "number of observer nodes")
 	flag.IntVar(&unstakedAccessCount, "unstaked-access", DefaultUnstakedAccessCount, "number of un-staked access nodes")
 	flag.UintVar(&nClusters, "nclusters", DefaultNClusters, "number of collector clusters")
 	flag.Uint64Var(&numViewsEpoch, "epoch-length", 10000, "number of views in epoch")
@@ -89,6 +92,7 @@ func main() {
 	fmt.Printf("- Execution: %d\n", executionCount)
 	fmt.Printf("- Verification: %d\n", verificationCount)
 	fmt.Printf("- Staked Access: %d\n", accessCount)
+	fmt.Printf("- Observer: %d\n\n", observerCount)
 	fmt.Printf("- Unstaked Access: %d\n\n", unstakedAccessCount)
 
 	nodes := prepareNodes()
@@ -180,6 +184,9 @@ func main() {
 	for i := 0; i < executionCount; i++ {
 		fmt.Printf("Execution API %d will be accessible at localhost:%d\n", i+1, ExecutionAPIPort+i)
 	}
+	for i := 0; i < observerCount; i++ {
+		fmt.Printf("Observer API %d will be accessible at localhost:%d\n", i+1, ObserverAPIPort+i)
+	}
 
 	fmt.Println()
 
@@ -211,6 +218,12 @@ func prepareNodes() []testnet.NodeConfig {
 
 	for i := 0; i < unstakedAccessCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
+			cfg.SupportsUnstakedNodes = true
+		}))
+	}
+
+	for i := 0; i < observerCount; i++ {
+		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleObserver, func(cfg *testnet.NodeConfig) {
 			cfg.SupportsUnstakedNodes = true
 		}))
 	}
@@ -255,6 +268,7 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 		numExecution    = 0
 		numVerification = 0
 		numAccess       = 0
+		numObserver     = 0
 	)
 
 	for n, container := range containers {
@@ -282,6 +296,9 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 		case flow.RoleAccess:
 			services[container.ContainerName] = prepareAccessService(container, numAccess, n)
 			numAccess++
+		case flow.RoleObserver:
+			services[container.ContainerName] = prepareObserverService(container, numObserver, n)
+			numObserver++
 		}
 	}
 
@@ -336,7 +353,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 	}
 
 	// TODO: having trouble enabling admin tool for access node. skip Access node for now.
-	if container.Role != flow.RoleAccess {
+	if container.Role != flow.RoleAccess && container.Role != flow.RoleObserver {
 		service.Command = append(service.Command, fmt.Sprintf("--admin-addr=:%v", AdminToolPort))
 	}
 
@@ -364,6 +381,10 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		service.DependsOn = []string{
 			fmt.Sprintf("%s_1", container.Role),
 		}
+	}
+
+	if container.Role == flow.RoleObserver {
+		service.DependsOn = []string{}
 	}
 
 	return service
@@ -487,6 +508,27 @@ func prepareAccessService(container testnet.ContainerConfig, i int, n int) Servi
 	return service
 }
 
+func prepareObserverService(container testnet.ContainerConfig, i int, n int) Service {
+	service := prepareService(container, i, n)
+
+	service.Command = append(service.Command, []string{
+		fmt.Sprintf("--rpc-addr=%s:%d", container.ContainerName, RPCPort),
+		fmt.Sprintf("--secure-rpc-addr=%s:%d", container.ContainerName, SecuredRPCPort),
+		fmt.Sprintf("--http-addr=%s:%d", container.ContainerName, HTTPPort),
+		fmt.Sprintf("--collection-ingress-port=%d", RPCPort),
+		"--log-tx-time-to-finalized",
+		"--log-tx-time-to-executed",
+		"--log-tx-time-to-finalized-executed",
+	}...)
+
+	service.Ports = []string{
+		fmt.Sprintf("%d:%d", ObserverAPIPort+2*i, RPCPort),
+		fmt.Sprintf("%d:%d", ObserverAPIPort+(2*i+1), SecuredRPCPort),
+	}
+
+	return service
+}
+
 func writeDockerComposeConfig(services Services) error {
 	f, err := openAndTruncate(DockerComposeFile)
 	if err != nil {
@@ -534,6 +576,7 @@ func prepareServiceDiscovery(containers []testnet.ContainerConfig) PrometheusSer
 		flow.RoleExecution:    newPrometheusTargetList(flow.RoleExecution),
 		flow.RoleVerification: newPrometheusTargetList(flow.RoleVerification),
 		flow.RoleAccess:       newPrometheusTargetList(flow.RoleAccess),
+		flow.RoleObserver:     newPrometheusTargetList(flow.RoleObserver),
 	}
 
 	for _, container := range containers {
@@ -549,6 +592,7 @@ func prepareServiceDiscovery(containers []testnet.ContainerConfig) PrometheusSer
 		targets[flow.RoleExecution],
 		targets[flow.RoleVerification],
 		targets[flow.RoleAccess],
+		targets[flow.RoleObserver],
 	}
 }
 
