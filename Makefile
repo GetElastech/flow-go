@@ -443,3 +443,31 @@ monitor-rollout:
 	kubectl --kubeconfig=$$kconfig rollout status statefulsets.apps flow-consensus-node-v1; \
 	kubectl --kubeconfig=$$kconfig rollout status statefulsets.apps flow-execution-node-v1; \
 	kubectl --kubeconfig=$$kconfig rollout status statefulsets.apps flow-verification-node-v1
+
+.PHONY: install-centos-prerequisites
+install-centos-prerequisites:
+	# Prerequisites for CentOS based distributions like CentOS, Redhat, Oracle Enterprise Linux, Suse Linux Enterprise
+	which yum && yum install -y git cmake gcc-c++ || true
+	which dnf && dnf install -y dnf-utils zip unzip || true
+	which dnf && dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo || true
+	which dnf && dnf install -y docker-ce --nobest || true
+	systemctl enable docker.service || true
+	systemctl start docker.service || true
+	curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-Linux-x86_64" -o /bin/docker-compose && chmod u+x /bin/docker-compose
+	git submodule update --init --recursive
+	curl -L https://go.dev/dl/go1.16.14.linux-amd64.tar.gz --output go1.16.14.linux-amd64.tar.gz
+	rm -rf /usr/local/go && tar -C /usr/local -xzf go1.16.14.linux-amd64.tar.gz && rm -f go1.16.14.linux-amd64.tar.gz
+	rm -rf crypto/relic && make install-tools
+
+.PHONY: install-debian-prerequisites
+install-debian-prerequisites:
+	# Prerequisites for Debian based distributions like Debian, Ubuntu, Mint
+	apt install -y binutils gcc build-essential zip git cmake mockery mockgen
+	git submodule update --init --recursive
+	apt install docker.io
+	curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-Linux-x86_64" -o /bin/docker-compose && chmod u+x /bin/docker-compose
+	git submodule update --init --recursive
+	curl -L https://go.dev/dl/go1.16.14.linux-amd64.tar.gz --output go1.16.14.linux-amd64.tar.gz
+	rm -rf /usr/local/go && tar -C /usr/local -xzf go1.16.14.linux-amd64.tar.gz && rm -f go1.16.14.linux-amd64.tar.gz
+	rm -rf crypto/relic && make install-tools
+
