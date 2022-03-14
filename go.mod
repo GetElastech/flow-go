@@ -14,6 +14,8 @@ require (
 	github.com/dapperlabs/testingdock v0.4.4
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.3
+	github.com/docker/docker v1.4.2-0.20190513124817-8c8457b0f2f8 // indirect
+	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/ef-ds/deque v1.0.4
 	github.com/ethereum/go-ethereum v1.9.13
 	github.com/fxamacker/cbor/v2 v2.3.1-0.20211029162100-5d5d7c3edd41
@@ -69,6 +71,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/pkg/errors v0.9.1
+	github.com/plus3it/gorecurcopy v0.0.1 // indirect
 	github.com/prometheus/client_golang v1.11.0
 	github.com/psiemens/sconfig v0.1.0 // indirect
 	github.com/rivo/uniseg v0.2.1-0.20211004051800-57c86be7915a // indirect
