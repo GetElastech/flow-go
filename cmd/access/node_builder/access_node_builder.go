@@ -71,11 +71,10 @@ type AccessNodeBuilder interface {
 	IsStaked() bool
 }
 
-// AccessNodeConfig defines all the user defined parameters required to bootstrap an access node
+// SharedNodeConfig defines all the user defined parameters required to bootstrap an access or observer node
 // For a node running as a standalone process, the config fields will be populated from the command line params,
 // while for a node running as a library, the config fields are expected to be initialized by the caller.
-type AccessNodeConfig struct {
-	staked                       bool
+type SharedNodeConfig struct {
 	bootstrapNodeAddresses       []string
 	bootstrapNodePublicKeys      []string
 	observerNetworkingKeyPath    string
@@ -96,9 +95,17 @@ type AccessNodeConfig struct {
 	logTxTimeToFinalizedExecuted bool
 	retryEnabled                 bool
 	rpcMetricsEnabled            bool
-	baseOptions                  []cmd.Option
+	BaseOptions                  []cmd.Option
 
 	PublicNetworkConfig PublicNetworkConfig
+}
+
+// AccessNodeConfig defines all the user defined parameters required to bootstrap an access node
+// For a node running as a standalone process, the config fields will be populated from the command line params,
+// while for a node running as a library, the config fields are expected to be initialized by the caller.
+type AccessNodeConfig struct {
+	SharedNodeConfig
+	staked bool
 }
 
 type PublicNetworkConfig struct {
@@ -108,9 +115,9 @@ type PublicNetworkConfig struct {
 	Metrics     module.NetworkMetrics
 }
 
-// DefaultAccessNodeConfig defines all the default values for the AccessNodeConfig
-func DefaultAccessNodeConfig() *AccessNodeConfig {
-	return &AccessNodeConfig{
+// DefaultSharedNodeConfig defines all the default values for the AccessNodeConfig
+func DefaultSharedNodeConfig() *SharedNodeConfig {
+	return &SharedNodeConfig{
 		collectionGRPCPort: 9000,
 		executionGRPCPort:  9000,
 		rpcConf: rpc.Config{
@@ -136,7 +143,6 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 		nodeInfoFile:                 "",
 		apiRatelimits:                nil,
 		apiBurstlimits:               nil,
-		staked:                       true,
 		bootstrapNodeAddresses:       []string{},
 		bootstrapNodePublicKeys:      []string{},
 		supportsUnstakedFollower:     false,
@@ -145,6 +151,22 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 			Metrics:     metrics.NewNoopCollector(),
 		},
 		observerNetworkingKeyPath: cmd.NotSet,
+	}
+}
+
+// DefaultAccessNodeConfig defines all the default values for the AccessNodeConfig
+func DefaultAccessNodeConfig() *AccessNodeConfig {
+	return &AccessNodeConfig{
+		SharedNodeConfig: *DefaultSharedNodeConfig(),
+		staked:           true,
+	}
+}
+
+// UnstakedAccessNodeConfig defines all the default values for the unstaked AccessNodeConfig
+func UnstakedAccessNodeConfig() *AccessNodeConfig {
+	return &AccessNodeConfig{
+		SharedNodeConfig: *DefaultSharedNodeConfig(),
+		staked:           false,
 	}
 }
 
@@ -394,7 +416,7 @@ func WithNetworkKey(key crypto.PrivateKey) Option {
 
 func WithBaseOptions(baseOptions []cmd.Option) Option {
 	return func(config *AccessNodeConfig) {
-		config.baseOptions = baseOptions
+		config.BaseOptions = baseOptions
 	}
 }
 
@@ -406,7 +428,7 @@ func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 
 	return &FlowAccessNodeBuilder{
 		AccessNodeConfig:        config,
-		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.baseOptions...),
+		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.BaseOptions...),
 		FinalizationDistributor: pubsub.NewFinalizationDistributor(),
 	}
 }

@@ -596,6 +596,11 @@ func PrepareFlowNetwork(t *testing.T, networkConf NetworkConfig) *FlowNetwork {
 	}
 	require.GreaterOrEqualf(t, len(accessNodeIDS), DefaultMinimumNumOfAccessNodeIDS,
 		fmt.Sprintf("at least %d access nodes that are not a ghost must be configured for test suite", DefaultMinimumNumOfAccessNodeIDS))
+	for _, n := range confs {
+		if n.Role == flow.RoleObserverService && !n.Ghost {
+			accessNodeIDS = append(accessNodeIDS, n.NodeID.String())
+		}
+	}
 
 	for _, nodeConf := range confs {
 		var nodeType = "real"
@@ -843,7 +848,7 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 
 			nodeContainer.AddFlag("execution-data-dir", DefaultExecutionDataServiceDir)
 
-		case flow.RoleAccess:
+		case flow.RoleAccess, flow.RoleObserverService:
 			hostGRPCPort := testingdock.RandomPort(t)
 			hostHTTPProxyPort := testingdock.RandomPort(t)
 			hostSecureGRPCPort := testingdock.RandomPort(t)
@@ -942,7 +947,7 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 	// if is real node, since the node config has been sorted, execution should always
 	// be created before consensus node. so by the time we are creating access/consensus
 	// node, the execution has been created, and we can add the dependency here
-	if nodeConf.Role == flow.RoleAccess || nodeConf.Role == flow.RoleConsensus {
+	if nodeConf.Role == flow.RoleAccess || nodeConf.Role == flow.RoleObserverService || nodeConf.Role == flow.RoleConsensus {
 		execution1 := net.ContainerByName("execution_1")
 		execution1.After(suiteContainer)
 	} else {
@@ -1126,6 +1131,12 @@ func BootstrapNetwork(networkConf NetworkConfig, bootstrapDir string) (*flow.Blo
 		DKGPubKeys:                   dkg.PubKeyShares,
 	}
 
+	for i, _ := range participants {
+		if participants[i].Role == flow.RoleObserverService {
+			// It is simulated now by legacy logic
+			participants[i].Role = flow.RoleAccess
+		}
+	}
 	// generate the initial execution state
 	trieDir := filepath.Join(bootstrapDir, bootstrap.DirnameExecutionState)
 	commit, err := run.GenerateExecutionState(
