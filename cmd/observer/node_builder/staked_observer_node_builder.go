@@ -1,4 +1,4 @@
-package node_builder
+package observer
 
 import (
 	"context"
@@ -22,14 +22,12 @@ import (
 	"github.com/onflow/flow-go/engine/access/rpc"
 	"github.com/onflow/flow-go/engine/access/rpc/backend"
 	"github.com/onflow/flow-go/engine/common/requester"
-	synceng "github.com/onflow/flow-go/engine/common/synchronization"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/model/flow/filter"
 	"github.com/onflow/flow-go/module"
 	"github.com/onflow/flow-go/module/id"
 	"github.com/onflow/flow-go/module/mempool/stdmap"
 	"github.com/onflow/flow-go/module/metrics"
-	"github.com/onflow/flow-go/module/metrics/unstaked"
 	"github.com/onflow/flow-go/network"
 	netcache "github.com/onflow/flow-go/network/cache"
 	"github.com/onflow/flow-go/network/p2p"
@@ -45,7 +43,7 @@ type StakedAccessNodeBuilder struct {
 	*FlowAccessNodeBuilder
 }
 
-func NewStakedAccessNodeBuilder(builder *FlowAccessNodeBuilder) *StakedAccessNodeBuilder {
+func NewObserverNodeBuilder(builder *FlowAccessNodeBuilder) *StakedAccessNodeBuilder {
 	return &StakedAccessNodeBuilder{
 		FlowAccessNodeBuilder: builder,
 	}
@@ -85,12 +83,6 @@ func (builder *StakedAccessNodeBuilder) Initialize() error {
 	// enqueue the regular network
 	builder.EnqueueNetworkInit()
 
-	// if this is an access node that supports unstaked followers, enqueue the unstaked network
-	if builder.supportsObservers {
-		builder.enqueueUnstakedNetworkInit()
-		builder.enqueueRelayNetwork()
-	}
-
 	builder.EnqueuePingService()
 
 	builder.EnqueueMetricsServerInit()
@@ -108,7 +100,7 @@ func (builder *StakedAccessNodeBuilder) enqueueRelayNetwork() {
 	builder.Component("relay network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		relayNet := relaynet.NewRelayNetwork(
 			node.Network,
-			builder.AccessNodeConfig.PublicNetworkConfig.Network,
+			builder.ObserverServiceConfig.PublicNetworkConfig.Network,
 			node.Logger,
 			[]network.Channel{engine.ReceiveBlocks},
 		)
@@ -258,26 +250,6 @@ func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
 			return builder.RequestEng, nil
 		})
 
-	if builder.supportsObservers {
-		builder.Component("unstaked sync request handler", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
-			syncRequestHandler, err := synceng.NewRequestHandlerEngine(
-				node.Logger.With().Bool("unstaked", true).Logger(),
-				unstaked.NewUnstakedEngineCollector(node.Metrics.Engine),
-				builder.AccessNodeConfig.PublicNetworkConfig.Network,
-				node.Me,
-				node.Storage.Blocks,
-				builder.SyncCore,
-				builder.FinalizedHeader,
-			)
-
-			if err != nil {
-				return nil, fmt.Errorf("could not create unstaked sync request handler: %w", err)
-			}
-
-			return syncRequestHandler, nil
-		})
-	}
-
 	builder.Component("ping engine", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		ping, err := pingeng.New(
 			node.Logger,
@@ -307,7 +279,7 @@ func (builder *StakedAccessNodeBuilder) enqueueUnstakedNetworkInit() {
 
 		libP2PFactory := builder.initLibP2PFactory(builder.NodeConfig.NetworkKey)
 
-		msgValidators := unstakedNetworkMsgValidators(node.Logger.With().Bool("unstaked", true).Logger(), node.IdentityProvider, builder.NodeID)
+		msgValidators := observerNetworkMsgValidators(node.Logger.With().Bool("unstaked", true).Logger(), node.IdentityProvider, builder.NodeID)
 
 		middleware := builder.initMiddleware(builder.NodeID, builder.PublicNetworkConfig.Metrics, libP2PFactory, msgValidators...)
 
@@ -332,7 +304,7 @@ func (builder *StakedAccessNodeBuilder) enqueueUnstakedNetworkInit() {
 			return nil, err
 		}
 
-		builder.AccessNodeConfig.PublicNetworkConfig.Network = net
+		builder.ObserverServiceConfig.PublicNetworkConfig.Network = net
 
 		node.Logger.Info().Msgf("network will run on address: %s", builder.PublicNetworkConfig.BindAddress)
 		return net, nil
