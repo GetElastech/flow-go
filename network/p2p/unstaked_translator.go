@@ -20,7 +20,7 @@ import (
 // and any peer ID's which don't follow these conventions are considered invalid.
 type UnstakedNetworkIDTranslator struct{}
 
-func NewUnstakedNetworkIDTranslator() *UnstakedNetworkIDTranslator {
+func NewObserverNetworkIDTranslator() *UnstakedNetworkIDTranslator {
 	return &UnstakedNetworkIDTranslator{}
 }
 
