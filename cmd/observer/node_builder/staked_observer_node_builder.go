@@ -1,4 +1,4 @@
-package node_builder
+package observer
 
 import (
 	"context"
@@ -22,14 +22,12 @@ import (
 	"github.com/onflow/flow-go/engine/access/rpc"
 	"github.com/onflow/flow-go/engine/access/rpc/backend"
 	"github.com/onflow/flow-go/engine/common/requester"
-	synceng "github.com/onflow/flow-go/engine/common/synchronization"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/model/flow/filter"
 	"github.com/onflow/flow-go/module"
 	"github.com/onflow/flow-go/module/id"
 	"github.com/onflow/flow-go/module/mempool/stdmap"
 	"github.com/onflow/flow-go/module/metrics"
-	"github.com/onflow/flow-go/module/metrics/unstaked"
 	"github.com/onflow/flow-go/network"
 	netcache "github.com/onflow/flow-go/network/cache"
 	"github.com/onflow/flow-go/network/p2p"
@@ -39,19 +37,20 @@ import (
 	"github.com/onflow/flow-go/utils/grpcutils"
 )
 
-// StakedAccessNodeBuilder builds a staked access node. The staked access node can optionally participate in the
-// unstaked network publishing data for the unstaked access node downstream.
-type StakedAccessNodeBuilder struct {
+// StakedObserverNodeBuilder builds a staked access node for simulation for now.
+// Observer services can participate in the observer network
+// publishing data for the observer node downstream.
+type StakedObserverNodeBuilder struct {
 	*FlowAccessNodeBuilder
 }
 
-func NewStakedAccessNodeBuilder(builder *FlowAccessNodeBuilder) *StakedAccessNodeBuilder {
-	return &StakedAccessNodeBuilder{
+func NewObserverNodeBuilder(builder *FlowAccessNodeBuilder) *StakedObserverNodeBuilder {
+	return &StakedObserverNodeBuilder{
 		FlowAccessNodeBuilder: builder,
 	}
 }
 
-func (builder *StakedAccessNodeBuilder) InitIDProviders() {
+func (builder *StakedObserverNodeBuilder) InitIDProviders() {
 	builder.Module("id providers", func(node *cmd.NodeConfig) error {
 		idCache, err := p2p.NewProtocolStateIDCache(node.Logger, node.State, node.ProtocolEvents)
 		if err != nil {
@@ -77,19 +76,13 @@ func (builder *StakedAccessNodeBuilder) InitIDProviders() {
 	})
 }
 
-func (builder *StakedAccessNodeBuilder) Initialize() error {
+func (builder *StakedObserverNodeBuilder) Initialize() error {
 	builder.InitIDProviders()
 
 	builder.EnqueueResolver()
 
 	// enqueue the regular network
 	builder.EnqueueNetworkInit()
-
-	// if this is an access node that supports unstaked followers, enqueue the unstaked network
-	if builder.supportsObservers {
-		builder.enqueueUnstakedNetworkInit()
-		builder.enqueueRelayNetwork()
-	}
 
 	builder.EnqueuePingService()
 
@@ -104,11 +97,11 @@ func (builder *StakedAccessNodeBuilder) Initialize() error {
 	return nil
 }
 
-func (builder *StakedAccessNodeBuilder) enqueueRelayNetwork() {
+func (builder *StakedObserverNodeBuilder) enqueueRelayNetwork() {
 	builder.Component("relay network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		relayNet := relaynet.NewRelayNetwork(
 			node.Network,
-			builder.AccessNodeConfig.PublicNetworkConfig.Network,
+			builder.ObserverServiceConfig.PublicNetworkConfig.Network,
 			node.Logger,
 			[]network.Channel{engine.ReceiveBlocks},
 		)
@@ -117,7 +110,7 @@ func (builder *StakedAccessNodeBuilder) enqueueRelayNetwork() {
 	})
 }
 
-func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
+func (builder *StakedObserverNodeBuilder) Build() (cmd.Node, error) {
 	builder.
 		BuildConsensusFollower().
 		Module("collection node client", func(node *cmd.NodeConfig) error {
@@ -258,26 +251,6 @@ func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
 			return builder.RequestEng, nil
 		})
 
-	if builder.supportsObservers {
-		builder.Component("unstaked sync request handler", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
-			syncRequestHandler, err := synceng.NewRequestHandlerEngine(
-				node.Logger.With().Bool("unstaked", true).Logger(),
-				unstaked.NewUnstakedEngineCollector(node.Metrics.Engine),
-				builder.AccessNodeConfig.PublicNetworkConfig.Network,
-				node.Me,
-				node.Storage.Blocks,
-				builder.SyncCore,
-				builder.FinalizedHeader,
-			)
-
-			if err != nil {
-				return nil, fmt.Errorf("could not create unstaked sync request handler: %w", err)
-			}
-
-			return syncRequestHandler, nil
-		})
-	}
-
 	builder.Component("ping engine", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		ping, err := pingeng.New(
 			node.Logger,
@@ -300,14 +273,16 @@ func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
 	return builder.FlowAccessNodeBuilder.Build()
 }
 
-// enqueueUnstakedNetworkInit enqueues the unstaked network component initialized for the staked node
-func (builder *StakedAccessNodeBuilder) enqueueUnstakedNetworkInit() {
+// enqueuePublicNetworkInit enqueues the public network component initialized for the staked node
+func (builder *StakedObserverNodeBuilder) enqueuePublicNetworkInit() {
+	// We still refer to "unstaked network" here to reflect what the access node refers to
+	// Observer implementations later should use a different name "public network"
 	builder.Component("unstaked network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		builder.PublicNetworkConfig.Metrics = metrics.NewNetworkCollector(metrics.WithNetworkPrefix("unstaked"))
 
 		libP2PFactory := builder.initLibP2PFactory(builder.NodeConfig.NetworkKey)
 
-		msgValidators := unstakedNetworkMsgValidators(node.Logger.With().Bool("unstaked", true).Logger(), node.IdentityProvider, builder.NodeID)
+		msgValidators := observerNetworkMsgValidators(node.Logger.With().Bool("unstaked", true).Logger(), node.IdentityProvider, builder.NodeID)
 
 		middleware := builder.initMiddleware(builder.NodeID, builder.PublicNetworkConfig.Metrics, libP2PFactory, msgValidators...)
 
@@ -332,7 +307,7 @@ func (builder *StakedAccessNodeBuilder) enqueueUnstakedNetworkInit() {
 			return nil, err
 		}
 
-		builder.AccessNodeConfig.PublicNetworkConfig.Network = net
+		builder.ObserverServiceConfig.PublicNetworkConfig.Network = net
 
 		node.Logger.Info().Msgf("network will run on address: %s", builder.PublicNetworkConfig.BindAddress)
 		return net, nil
@@ -347,7 +322,7 @@ func (builder *StakedAccessNodeBuilder) enqueueUnstakedNetworkInit() {
 // 		The passed in private key as the libp2p key
 //		No connection gater
 // 		Default Flow libp2p pubsub options
-func (builder *StakedAccessNodeBuilder) initLibP2PFactory(networkKey crypto.PrivateKey) p2p.LibP2PFactoryFunc {
+func (builder *StakedObserverNodeBuilder) initLibP2PFactory(networkKey crypto.PrivateKey) p2p.LibP2PFactoryFunc {
 	return func(ctx context.Context) (*p2p.Node, error) {
 		connManager := p2p.NewConnManager(builder.Logger, builder.PublicNetworkConfig.Metrics)
 
@@ -377,12 +352,12 @@ func (builder *StakedAccessNodeBuilder) initLibP2PFactory(networkKey crypto.Priv
 
 // initMiddleware creates the network.Middleware implementation with the libp2p factory function, metrics, peer update
 // interval, and validators. The network.Middleware is then passed into the initNetwork function.
-func (builder *StakedAccessNodeBuilder) initMiddleware(nodeID flow.Identifier,
+func (builder *StakedObserverNodeBuilder) initMiddleware(nodeID flow.Identifier,
 	networkMetrics module.NetworkMetrics,
 	factoryFunc p2p.LibP2PFactoryFunc,
 	validators ...network.MessageValidator) network.Middleware {
 
-	// disable connection pruning for the staked AN which supports the unstaked AN
+	// disable connection pruning for the staked AN which supports the observer service
 	peerManagerFactory := p2p.PeerManagerFactory([]p2p.Option{p2p.WithInterval(builder.PeerUpdateInterval)}, p2p.WithConnectionPruning(false))
 
 	builder.Middleware = p2p.NewMiddleware(
