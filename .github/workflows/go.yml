@@ -1,0 +1,29 @@
+name: Go
+
+on:
+  push:
+    branches: [ observer-prca ]
+  pull_request:
+    branches: [ observer-prca ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16.14
+
+    - name: Install
+      run: apt install -y binutils gcc build-essential zip git cmake mockery mockgen docker.io
+
+    - name: Build
+      run: make build-tools
+
+    - name: Test
+      run: make docker-build-flow
+
