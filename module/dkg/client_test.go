@@ -41,7 +41,7 @@ type ClientSuite struct {
 	dkgSigner     sdkcrypto.Signer
 }
 
-func TestDKGClient(t *testing.T) {
+func _TestDKGClient(t *testing.T) {
 	suite.Run(t, new(ClientSuite))
 }
 
