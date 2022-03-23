@@ -1,0 +1,64 @@
+name: Docker Image CI
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+on:
+  push:
+    branches: 
+      - master
+      - 'feature/**' 
+    tags: [ 'v*.*.*' ]
+
+env:
+  REGISTRY: gcr.io/flow-container-registry
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
+
+      # https://github.com/docker/login-action
+      - id: 'auth'
+        if: github.event_name != 'pull_request'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0'
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: '<workload_identity_provider>'
+          service_account: '<service_account>'
+          
+      - name: Login to GCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+
+      # Build docker image
+      - name: Build Docker image
+        if: github.event_name != 'pull_request'
+        id: build-image
+        with:
+          command: make docker-build-flow
+      
+      # Push docker image
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        id: push-image
+        with:
+          command: make docker-push-flow
