@@ -256,8 +256,6 @@ docker-build-access-debug:
 	docker build -f cmd/Dockerfile  --build-arg TARGET=access  --build-arg COMMIT=$(COMMIT) --build-arg VERSION=$(IMAGE_TAG) --build-arg GOARCH=$(GOARCH) --target debug \
 		-t "$(CONTAINER_REGISTRY)/access-debug:latest" -t "$(CONTAINER_REGISTRY)/access-debug:$(SHORT_COMMIT)" -t "$(CONTAINER_REGISTRY)/access-debug:$(IMAGE_TAG)" .
 
-# Observer is currently a modified access node, this target is added for compatibility with deployment pipeline
-# It points to cmd/observer
 .PHONY: docker-build-observer
 docker-build-observer:
 	docker build -f cmd/Dockerfile  --build-arg TARGET=observer --build-arg COMMIT=$(COMMIT)  --build-arg VERSION=$(IMAGE_TAG) --build-arg GOARCH=$(GOARCH) --target production \

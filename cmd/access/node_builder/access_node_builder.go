@@ -71,16 +71,18 @@ type AccessNodeBuilder interface {
 	IsStaked() bool
 }
 
-// SharedNodeConfig defines all the user defined parameters required to bootstrap an access or observer node
+// AccessNodeConfig defines all the user defined parameters required to bootstrap an access node
 // For a node running as a standalone process, the config fields will be populated from the command line params,
 // while for a node running as a library, the config fields are expected to be initialized by the caller.
-type SharedNodeConfig struct {
+type AccessNodeConfig struct {
+	staked                       bool
+	supportsObservers            bool
 	bootstrapNodeAddresses       []string
 	bootstrapNodePublicKeys      []string
 	observerNetworkingKeyPath    string
 	bootstrapIdentities          flow.IdentityList // the identity list of bootstrap peers the node uses to discover other nodes
 	NetworkKey                   crypto.PrivateKey // the networking key passed in by the caller when being used as a library
-	supportsObservers            bool              // True if this is an Access node which also supports observer, and consensus follower engines
+	supportsUnstakedFollower     bool              // True if this is a staked Access node which also supports unstaked access nodes/unstaked consensus follower engines
 	collectionGRPCPort           uint
 	executionGRPCPort            uint
 	pingEnabled                  bool
@@ -100,14 +102,6 @@ type SharedNodeConfig struct {
 	PublicNetworkConfig PublicNetworkConfig
 }
 
-// AccessNodeConfig defines all the user defined parameters required to bootstrap an access node
-// For a node running as a standalone process, the config fields will be populated from the command line params,
-// while for a node running as a library, the config fields are expected to be initialized by the caller.
-type AccessNodeConfig struct {
-	SharedNodeConfig
-	staked bool
-}
-
 type PublicNetworkConfig struct {
 	// NetworkKey crypto.PublicKey // TODO: do we need a different key for the public network?
 	BindAddress string
@@ -116,8 +110,8 @@ type PublicNetworkConfig struct {
 }
 
 // DefaultSharedNodeConfig defines all the default values for the AccessNodeConfig
-func DefaultSharedNodeConfig() *SharedNodeConfig {
-	return &SharedNodeConfig{
+func DefaultAccessNodeConfig() *AccessNodeConfig {
+	return &AccessNodeConfig{
 		collectionGRPCPort: 9000,
 		executionGRPCPort:  9000,
 		rpcConf: rpc.Config{
@@ -151,14 +145,6 @@ func DefaultSharedNodeConfig() *SharedNodeConfig {
 			Metrics:     metrics.NewNoopCollector(),
 		},
 		observerNetworkingKeyPath: cmd.NotSet,
-	}
-}
-
-// DefaultAccessNodeConfig defines all the default values for the AccessNodeConfig
-func DefaultAccessNodeConfig() *AccessNodeConfig {
-	return &AccessNodeConfig{
-		SharedNodeConfig: *DefaultSharedNodeConfig(),
-		staked:           true,
 	}
 }
 
