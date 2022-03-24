@@ -45,7 +45,9 @@ import (
 	"github.com/onflow/flow-go/module"
 	"github.com/onflow/flow-go/module/id"
 	"github.com/onflow/flow-go/module/local"
+	"github.com/onflow/flow-go/module/metrics"
 	"github.com/onflow/flow-go/network"
+	netcache "github.com/onflow/flow-go/network/cache"
 	"github.com/onflow/flow-go/network/converter"
 	"github.com/onflow/flow-go/network/p2p"
 	"github.com/onflow/flow-go/network/p2p/keyutils"
@@ -326,13 +328,26 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 func (builder *ObserverNodeBuilder) enqueueObserverNetworkInit() {
 
 	builder.Component("unstaked network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
+		var heroCacheCollector module.HeroCacheMetrics = metrics.NewNoopCollector()
+		if builder.HeroCacheMetricsEnable {
+			heroCacheCollector = metrics.NetworkReceiveCacheMetricsFactory(builder.MetricsRegisterer)
+		}
+		receiveCache := netcache.NewHeroReceiveCache(builder.NetworkReceivedMessageCacheSize,
+			builder.Logger,
+			heroCacheCollector)
+
+		err := node.Metrics.Mempool.Register(metrics.ResourceNetworkingReceiveCache, receiveCache.Size)
+		if err != nil {
+			return nil, fmt.Errorf("could not register networking receive cache metric: %w", err)
+		}
+
 		// topology is nil since its automatically managed by libp2p
-		initializedNetwork, err := builder.initNetwork(builder.Me, builder.Metrics.Network, builder.Middleware, nil)
+		net, err := builder.initNetwork(builder.Me, builder.Metrics.Network, builder.Middleware, nil, receiveCache)
 		if err != nil {
 			return nil, err
 		}
 
-		builder.Network = converter.NewNetwork(initializedNetwork, engine.SyncCommittee, engine.PublicSyncCommittee)
+		builder.Network = converter.NewNetwork(net, engine.SyncCommittee, engine.PublicSyncCommittee)
 
 		builder.Logger.Info().Msgf("network will run on address: %s", builder.BindAddr)
 
