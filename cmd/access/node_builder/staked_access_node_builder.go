@@ -69,7 +69,7 @@ func (builder *StakedAccessNodeBuilder) InitIDProviders() {
 			)
 		}
 
-		builder.IDTranslator = p2p.NewHierarchicalIDTranslator(idCache, p2p.NewObserverNetworkIDTranslator())
+		builder.IDTranslator = p2p.NewHierarchicalIDTranslator(idCache, p2p.NewPublicNetworkIDTranslator())
 
 		return nil
 	})

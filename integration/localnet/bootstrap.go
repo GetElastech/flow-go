@@ -209,12 +209,16 @@ func prepareNodes() []testnet.NodeConfig {
 	}
 
 	for i := 0; i < accessCount; i++ {
-		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess))
+		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
+			// We let these access nodes to support observer services
+			cfg.SupportsObserverNodes = true
+		}))
 	}
 
 	for i := 0; i < observerCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleObserverService, func(cfg *testnet.NodeConfig) {
-			cfg.SupportsObserverNodes = true
+			// Observers are services, and they may act as additional data providers for scaling in the future.
+			cfg.SupportsObserverNodes = false
 		}))
 	}
 
