@@ -52,12 +52,10 @@ jobs:
       - name: Build Docker image
         if: github.event_name != 'pull_request'
         id: build-image
-        with:
-          command: make docker-build-flow
+        run: make docker-build-flow
       
 #       # Push docker image
 #       - name: Push Docker image
 #         if: github.event_name != 'pull_request'
 #         id: push-image
-#         with:
-#           command: make docker-push-flow
+#         run: make docker-push-flow
