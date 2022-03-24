@@ -30,23 +30,23 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/checkout@v2
 
-      # https://github.com/docker/login-action
-      - id: 'auth'
-        if: github.event_name != 'pull_request'
-        name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v0'
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: '<workload_identity_provider>'
-          service_account: '<service_account>'
+#       # https://github.com/docker/login-action
+#       - id: 'auth'
+#         if: github.event_name != 'pull_request'
+#         name: 'Authenticate to Google Cloud'
+#         uses: 'google-github-actions/auth@v0'
+#         with:
+#           token_format: 'access_token'
+#           workload_identity_provider: '<workload_identity_provider>'
+#           service_account: '<service_account>'
           
-      - name: Login to GCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1
-        with:
-          registry: gcr.io
-          username: oauth2accesstoken
-          password: ${{ steps.auth.outputs.access_token }}
+#       - name: Login to GCR
+#         if: github.event_name != 'pull_request'
+#         uses: docker/login-action@v1
+#         with:
+#           registry: gcr.io
+#           username: oauth2accesstoken
+#           password: ${{ steps.auth.outputs.access_token }}
 
 
       # Build docker image
@@ -56,9 +56,9 @@ jobs:
         with:
           command: make docker-build-flow
       
-      # Push docker image
-      - name: Push Docker image
-        if: github.event_name != 'pull_request'
-        id: push-image
-        with:
-          command: make docker-push-flow
+#       # Push docker image
+#       - name: Push Docker image
+#         if: github.event_name != 'pull_request'
+#         id: push-image
+#         with:
+#           command: make docker-push-flow
