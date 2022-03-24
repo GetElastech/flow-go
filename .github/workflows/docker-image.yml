@@ -27,7 +27,6 @@ jobs:
 
     steps:
       - name: Checkout repository
-        if: github.event_name != 'pull_request'
         uses: actions/checkout@v2
 
 #       # https://github.com/docker/login-action
