@@ -145,6 +145,7 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 			Metrics:     metrics.NewNoopCollector(),
 		},
 		observerNetworkingKeyPath: cmd.NotSet,
+		staked:                    true,
 	}
 }
 
