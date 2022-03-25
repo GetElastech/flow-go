@@ -37,20 +37,20 @@ import (
 	"github.com/onflow/flow-go/utils/grpcutils"
 )
 
-// StakedObserverNodeBuilder builds a staked access node for simulation for now.
+// ObserverNodeBuilder builds a staked access node for simulation for now.
 // Observer services can participate in the observer network
 // publishing data for the observer node downstream.
-type StakedObserverNodeBuilder struct {
+type ObserverNodeBuilder struct {
 	*FlowAccessNodeBuilder
 }
 
-func NewObserverNodeBuilder(builder *FlowAccessNodeBuilder) *StakedObserverNodeBuilder {
-	return &StakedObserverNodeBuilder{
+func NewObserverNodeBuilder(builder *FlowAccessNodeBuilder) *ObserverNodeBuilder {
+	return &ObserverNodeBuilder{
 		FlowAccessNodeBuilder: builder,
 	}
 }
 
-func (builder *StakedObserverNodeBuilder) InitIDProviders() {
+func (builder *ObserverNodeBuilder) InitIDProviders() {
 	builder.Module("id providers", func(node *cmd.NodeConfig) error {
 		idCache, err := p2p.NewProtocolStateIDCache(node.Logger, node.State, node.ProtocolEvents)
 		if err != nil {
@@ -76,7 +76,7 @@ func (builder *StakedObserverNodeBuilder) InitIDProviders() {
 	})
 }
 
-func (builder *StakedObserverNodeBuilder) Initialize() error {
+func (builder *ObserverNodeBuilder) Initialize() error {
 	builder.InitIDProviders()
 
 	builder.EnqueueResolver()
@@ -97,7 +97,7 @@ func (builder *StakedObserverNodeBuilder) Initialize() error {
 	return nil
 }
 
-func (builder *StakedObserverNodeBuilder) enqueueRelayNetwork() {
+func (builder *ObserverNodeBuilder) enqueueRelayNetwork() {
 	builder.Component("relay network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		relayNet := relaynet.NewRelayNetwork(
 			node.Network,
@@ -110,7 +110,7 @@ func (builder *StakedObserverNodeBuilder) enqueueRelayNetwork() {
 	})
 }
 
-func (builder *StakedObserverNodeBuilder) Build() (cmd.Node, error) {
+func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 	builder.
 		BuildConsensusFollower().
 		Module("collection node client", func(node *cmd.NodeConfig) error {
@@ -274,7 +274,7 @@ func (builder *StakedObserverNodeBuilder) Build() (cmd.Node, error) {
 }
 
 // enqueuePublicNetworkInit enqueues the public network component initialized for the staked node
-func (builder *StakedObserverNodeBuilder) enqueuePublicNetworkInit() {
+func (builder *ObserverNodeBuilder) enqueuePublicNetworkInit() {
 	// We still refer to "unstaked network" here to reflect what the access node refers to
 	// Observer implementations later should use a different name "public network"
 	builder.Component("unstaked network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
@@ -322,7 +322,7 @@ func (builder *StakedObserverNodeBuilder) enqueuePublicNetworkInit() {
 // 		The passed in private key as the libp2p key
 //		No connection gater
 // 		Default Flow libp2p pubsub options
-func (builder *StakedObserverNodeBuilder) initLibP2PFactory(networkKey crypto.PrivateKey) p2p.LibP2PFactoryFunc {
+func (builder *ObserverNodeBuilder) initLibP2PFactory(networkKey crypto.PrivateKey) p2p.LibP2PFactoryFunc {
 	return func(ctx context.Context) (*p2p.Node, error) {
 		connManager := p2p.NewConnManager(builder.Logger, builder.PublicNetworkConfig.Metrics)
 
@@ -352,7 +352,7 @@ func (builder *StakedObserverNodeBuilder) initLibP2PFactory(networkKey crypto.Pr
 
 // initMiddleware creates the network.Middleware implementation with the libp2p factory function, metrics, peer update
 // interval, and validators. The network.Middleware is then passed into the initNetwork function.
-func (builder *StakedObserverNodeBuilder) initMiddleware(nodeID flow.Identifier,
+func (builder *ObserverNodeBuilder) initMiddleware(nodeID flow.Identifier,
 	networkMetrics module.NetworkMetrics,
 	factoryFunc p2p.LibP2PFactoryFunc,
 	validators ...network.MessageValidator) network.Middleware {
