@@ -1,0 +1,54 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: 
+      - master
+      - 'feature/**' 
+    tags: [ 'v*.*.*' ]
+
+env:
+  REGISTRY: gcr.io/flow-container-registry
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # https://github.com/docker/login-action
+      - id: 'auth'
+        if: github.event_name != 'pull_request'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0'
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: 'projects/97291604265/locations/global/workloadIdentityPools/github-actions-wip/providers/github-actions'
+          service_account: 'github-actions@dapper-flow.iam.gserviceaccount.com'
+          
+      - name: Login to GCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+
+      # Build docker image
+      - name: Build Docker image
+        if: github.event_name != 'pull_request'
+        id: build-image
+        run: make docker-build-flow
+      
+      # Push docker image
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        id: push-image
+        run: make docker-push-flow
