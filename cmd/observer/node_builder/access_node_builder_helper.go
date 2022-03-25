@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	nodebuilder "github.com/onflow/flow-go/cmd/access/node_builder"
-	access "github.com/onflow/flow-go/engine/access/mock"
 	"strings"
 	"time"
 
+	"github.com/onflow/flow/protobuf/go/flow/access"
 	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
 
@@ -76,8 +75,31 @@ type AccessNodeBuilder interface {
 // For a node running as a standalone process, the config fields will be populated from the command line params,
 // while for a node running as a library, the config fields are expected to be initialized by the caller.
 type AccessNodeConfig struct {
-	SharedNodeConfig
-	staked bool
+	staked                       bool
+	supportsObservers            bool
+	bootstrapNodeAddresses       []string
+	bootstrapNodePublicKeys      []string
+	observerNetworkingKeyPath    string
+	bootstrapIdentities          flow.IdentityList // the identity list of bootstrap peers the node uses to discover other nodes
+	NetworkKey                   crypto.PrivateKey // the networking key passed in by the caller when being used as a library
+	supportsUnstakedFollower     bool              // True if this is a staked Access node which also supports unstaked access nodes/unstaked consensus follower engines
+	collectionGRPCPort           uint
+	executionGRPCPort            uint
+	pingEnabled                  bool
+	nodeInfoFile                 string
+	apiRatelimits                map[string]int
+	apiBurstlimits               map[string]int
+	rpcConf                      rpc.Config
+	ExecutionNodeAddress         string // deprecated
+	HistoricalAccessRPCs         []access.AccessAPIClient
+	logTxTimeToFinalized         bool
+	logTxTimeToExecuted          bool
+	logTxTimeToFinalizedExecuted bool
+	retryEnabled                 bool
+	rpcMetricsEnabled            bool
+	BaseOptions                  []cmd.Option
+
+	PublicNetworkConfig PublicNetworkConfig
 }
 
 type PublicNetworkConfig struct {
@@ -88,8 +110,8 @@ type PublicNetworkConfig struct {
 }
 
 // DefaultSharedNodeConfig defines all the default values for the AccessNodeConfig
-func DefaultSharedNodeConfig() *SharedNodeConfig {
-	return &SharedNodeConfig{
+func DefaultObserverNodeConfig() *AccessNodeConfig {
+	return &AccessNodeConfig{
 		collectionGRPCPort: 9000,
 		executionGRPCPort:  9000,
 		rpcConf: rpc.Config{
@@ -115,30 +137,15 @@ func DefaultSharedNodeConfig() *SharedNodeConfig {
 		nodeInfoFile:                 "",
 		apiRatelimits:                nil,
 		apiBurstlimits:               nil,
-		bootstrapNodeAddresses:       []string{"localhost:9000"},
-		bootstrapNodePublicKeys:      []string{"default"},
+		bootstrapNodeAddresses:       []string{},
+		bootstrapNodePublicKeys:      []string{},
 		supportsObservers:            false,
 		PublicNetworkConfig: PublicNetworkConfig{
 			BindAddress: cmd.NotSet,
 			Metrics:     metrics.NewNoopCollector(),
 		},
-		observerNetworkingKeyPath: "abc",
-	}
-}
-
-// DefaultAccessNodeConfig defines all the default values for the AccessNodeConfig
-func DefaultAccessNodeConfig() *AccessNodeConfig {
-	return &AccessNodeConfig{
-		SharedNodeConfig: *DefaultSharedNodeConfig(),
-		staked:           true,
-	}
-}
-
-// DefaultObserverNodeConfig defines all the default values for the AccessNodeConfig
-func DefaultObserverNodeConfig() *AccessNodeConfig {
-	return &AccessNodeConfig{
-		SharedNodeConfig: *DefaultSharedNodeConfig(),
-		staked:           false,
+		observerNetworkingKeyPath: cmd.NotSet,
+		staked:                    true,
 	}
 }
 
@@ -540,29 +547,4 @@ func BootstrapIdentities(addresses []string, keys []string) (flow.IdentityList, 
 		}
 	}
 	return ids, nil
-}
-
-func StakedAccessFallback() {
-	anb := nodebuilder.FlowAccessNode() // use the generic Access Node builder till it is determined if this is a staked AN or an observer service
-
-	anb.PrintBuildVersionDetails()
-
-	// parse all the command line args
-	if err := anb.ParseFlags(); err != nil {
-		anb.Logger.Fatal().Err(err).Send()
-	}
-
-	// choose a staked or an observer service builder based on anb.staked
-	var builder nodebuilder.AccessNodeBuilder
-	builder = nodebuilder.NewStakedAccessNodeBuilder(anb)
-
-	if err := builder.Initialize(); err != nil {
-		anb.Logger.Fatal().Err(err).Send()
-	}
-
-	node, err := builder.Build()
-	if err != nil {
-		anb.Logger.Fatal().Err(err).Send()
-	}
-	node.Run()
 }

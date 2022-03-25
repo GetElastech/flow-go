@@ -5,8 +5,6 @@ import (
 )
 
 func main() {
-	observer.StakedAccessFallback()
-
 	onb := observer.FlowAccessNode()
 
 	onb.PrintBuildVersionDetails()
