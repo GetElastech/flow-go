@@ -29,8 +29,8 @@ jobs:
         uses: 'google-github-actions/auth@v0'
         with:
           token_format: 'access_token'
-          workload_identity_provider: 'projects/97291604265/locations/global/workloadIdentityPools/github-actions-wip/providers/github-actions'
-          service_account: 'github-actions@dapper-flow.iam.gserviceaccount.com'
+          workload_identity_provider: 'projects/97291604265/locations/global/workloadIdentityPools/gh-pool/providers/gh-provider'
+          service_account: 'gh-runner@dapper-flow.iam.gserviceaccount.com'
           
       - name: Login to GCR
         if: github.event_name != 'pull_request'
