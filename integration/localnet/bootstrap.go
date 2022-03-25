@@ -345,11 +345,6 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		},
 	}
 
-	// Observer service does not need an admin tool for now.
-	if container.Role != flow.RoleObserverService {
-		service.Command = append(service.Command, fmt.Sprintf("--admin-addr=:%v", AdminToolPort))
-	}
-
 	// only specify build config for first service of each role
 	if i == 0 || container.Role == flow.RoleObserverService {
 		service.Build = Build{
