@@ -32,6 +32,10 @@ jobs:
           workload_identity_provider: 'projects/97291604265/locations/global/workloadIdentityPools/gh-pool/providers/gh-provider'
           service_account: 'gh-runner@dapper-flow.iam.gserviceaccount.com'
           
+      - name: Docker login
+        run: |-
+          echo '${{ steps.auth.outputs.access_token }}' | docker login -u oauth2accesstoken --password-stdin https://gcr.io
+        
       - name: Login to GCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v1
