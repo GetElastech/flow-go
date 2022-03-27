@@ -54,7 +54,7 @@ jobs:
       - name: Build Docker image
         if: github.event_name != 'pull_request'
         id: build-image
-        run: make docker-build-flow
+        run: make CONTAINER_REGISTRY='${{ env.CONTAINER_REGISTRY }}' docker-build-flow
       
       # Push docker image
       - name: Push Docker image
