@@ -8,7 +8,7 @@ on:
     tags: [ 'v*.*.*' ]
 
 env:
-  REGISTRY: gcr.io/flow-container-registry
+  CONTAINER_REGISTRY: gcr.io/dapper-flow
 
 jobs:
   build:
@@ -40,7 +40,7 @@ jobs:
 #         if: github.event_name != 'pull_request'
 #         uses: docker/login-action@v1
 #         with:
-#           registry: ${{ env.REGISTRY }}
+#           registry: ${{ env.CONTAINER_REGISTRY }}
 #           username: oauth2accesstoken
 #           password: ${{ steps.auth.outputs.access_token }}
 
@@ -60,4 +60,4 @@ jobs:
       - name: Push Docker image
         if: github.event_name != 'pull_request'
         id: push-image
-        run: make docker-push-flow
+        run: make CONTAINER_REGISTRY='${{ env.CONTAINER_REGISTRY }}' docker-push-flow
