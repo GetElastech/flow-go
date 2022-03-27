@@ -1,35 +1,37 @@
 package node_builder
 
+// Deprecated
+
 import (
-	"context"
-	"sync"
-	"time"
+"context"
+"sync"
+"time"
 
-	"github.com/rs/zerolog"
-	"github.com/sethvargo/go-retry"
-	"go.uber.org/atomic"
+"github.com/rs/zerolog"
+"github.com/sethvargo/go-retry"
+"go.uber.org/atomic"
 
-	"github.com/onflow/flow-go/model/flow"
-	"github.com/onflow/flow-go/module/lifecycle"
-	"github.com/onflow/flow-go/network/p2p"
+"github.com/onflow/flow-go/model/flow"
+"github.com/onflow/flow-go/module/lifecycle"
+"github.com/onflow/flow-go/network/p2p"
 )
 
-// upstreamConnector tries to connect the unstaked AN with atleast one of the configured bootstrap access nodes
+// upstreamConnector tries to connect the observer service with at least one of the configured bootstrap access nodes
 type upstreamConnector struct {
 	lm                  *lifecycle.LifecycleManager
 	bootstrapIdentities flow.IdentityList
 	logger              zerolog.Logger
-	unstakedNode        *p2p.Node
+	observerService     *p2p.Node
 	cancel              context.CancelFunc
 	retryInitialTimeout time.Duration
 	maxRetries          uint64
 }
 
-func newUpstreamConnector(bootstrapIdentities flow.IdentityList, unstakedNode *p2p.Node, logger zerolog.Logger) *upstreamConnector {
+func newUpstreamConnector(bootstrapIdentities flow.IdentityList, observerService *p2p.Node, logger zerolog.Logger) *upstreamConnector {
 	return &upstreamConnector{
 		lm:                  lifecycle.NewLifecycleManager(),
 		bootstrapIdentities: bootstrapIdentities,
-		unstakedNode:        unstakedNode,
+		observerService:     observerService,
 		logger:              logger,
 		retryInitialTimeout: time.Second,
 		maxRetries:          5,
@@ -76,7 +78,7 @@ func (connector *upstreamConnector) Ready() <-chan struct{} {
 		wg.Wait()
 
 		if !success.Load() {
-			// log fatal as there is no point continuing further, the unstaked AN cannot connect to any of the bootstrap peers
+			// log fatal as there is no point continuing further, the observer service cannot connect to any of the bootstrap peers
 			connector.logger.Fatal().
 				Msg("Failed to connect to a bootstrap node. " +
 					"Please ensure the network address and public key of the bootstrap access node are correct " +
@@ -103,7 +105,7 @@ func (connector *upstreamConnector) connect(ctx context.Context, bootstrapPeer f
 	}
 
 	// try and connect to the bootstrap server
-	return connector.unstakedNode.AddPeer(ctx, peerAddrInfo)
+	return connector.observerService.AddPeer(ctx, peerAddrInfo)
 }
 
 func (connector *upstreamConnector) Done() <-chan struct{} {
@@ -114,3 +116,4 @@ func (connector *upstreamConnector) Done() <-chan struct{} {
 	})
 	return connector.lm.Stopped()
 }
+

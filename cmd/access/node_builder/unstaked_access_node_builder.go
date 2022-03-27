@@ -13,14 +13,17 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
-	"github.com/onflow/flow-go/cmd"
 	"github.com/onflow/flow-go/crypto"
+
+	"github.com/onflow/flow-go/cmd"
 	"github.com/onflow/flow-go/engine"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/module"
 	"github.com/onflow/flow-go/module/id"
 	"github.com/onflow/flow-go/module/local"
+	"github.com/onflow/flow-go/module/metrics"
 	"github.com/onflow/flow-go/network"
+	netcache "github.com/onflow/flow-go/network/cache"
 	"github.com/onflow/flow-go/network/converter"
 	"github.com/onflow/flow-go/network/p2p"
 	"github.com/onflow/flow-go/network/p2p/keyutils"
@@ -64,7 +67,7 @@ func (builder *UnstakedAccessNodeBuilder) initNodeInfo() error {
 		return fmt.Errorf("could not get peer ID from public key: %w", err)
 	}
 
-	builder.NodeID, err = p2p.NewUnstakedNetworkIDTranslator().GetFlowID(builder.peerID)
+	builder.NodeID, err = p2p.NewPublicNetworkIDTranslator().GetFlowID(builder.peerID)
 	if err != nil {
 		return fmt.Errorf("could not get flow node ID: %w", err)
 	}
@@ -84,7 +87,7 @@ func (builder *UnstakedAccessNodeBuilder) InitIDProviders() {
 
 		builder.IdentityProvider = idCache
 
-		builder.IDTranslator = p2p.NewHierarchicalIDTranslator(idCache, p2p.NewUnstakedNetworkIDTranslator())
+		builder.IDTranslator = p2p.NewHierarchicalIDTranslator(idCache, p2p.NewPublicNetworkIDTranslator())
 
 		// use the default identifier provider
 		builder.SyncEngineParticipantsProviderFactory = func() id.IdentifierProvider {
@@ -270,13 +273,26 @@ func (builder *UnstakedAccessNodeBuilder) Build() (cmd.Node, error) {
 func (builder *UnstakedAccessNodeBuilder) enqueueUnstakedNetworkInit() {
 
 	builder.Component("unstaked network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
-		// topology is nil since its automatically managed by libp2p
-		network, err := builder.initNetwork(builder.Me, builder.Metrics.Network, builder.Middleware, nil)
+		var heroCacheCollector module.HeroCacheMetrics = metrics.NewNoopCollector()
+		if builder.HeroCacheMetricsEnable {
+			heroCacheCollector = metrics.NetworkReceiveCacheMetricsFactory(builder.MetricsRegisterer)
+		}
+		receiveCache := netcache.NewHeroReceiveCache(builder.NetworkReceivedMessageCacheSize,
+			builder.Logger,
+			heroCacheCollector)
+
+		err := node.Metrics.Mempool.Register(metrics.ResourceNetworkingReceiveCache, receiveCache.Size)
+		if err != nil {
+			return nil, fmt.Errorf("could not register networking receive cache metric: %w", err)
+		}
+
+		// topology is nil since it is automatically managed by libp2p
+		net, err := builder.initNetwork(builder.Me, builder.Metrics.Network, builder.Middleware, nil, receiveCache)
 		if err != nil {
 			return nil, err
 		}
 
-		builder.Network = converter.NewNetwork(network, engine.SyncCommittee, engine.PublicSyncCommittee)
+		builder.Network = converter.NewNetwork(net, engine.SyncCommittee, engine.PublicSyncCommittee)
 
 		builder.Logger.Info().Msgf("network will run on address: %s", builder.BindAddr)
 
