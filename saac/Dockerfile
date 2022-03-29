@@ -12,5 +12,5 @@ RUN go build -o saac
 
 
 FROM alpine:latest
-CMD ["/saac", "--access-address", "localnet_access_2_1:9000"]
+CMD ["/saac", "--access-node-address", "localnet_access_2_1:9000"]
 COPY --from=builder /app/saac /saac
