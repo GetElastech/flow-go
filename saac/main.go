@@ -47,3 +47,4 @@ func getLatestBlock(flowClient *client.Client, isSealed bool) (*flow.Block, erro
 	defer cancel()
 	return flowClient.GetLatestBlock(ctx, true)
 }
+
