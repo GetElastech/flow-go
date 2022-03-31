@@ -77,7 +77,6 @@ type AccessNodeConfig struct {
 	supportsObservers            bool
 	observerNetworkingKeyPath    string
 	NetworkKey                   crypto.PrivateKey // the networking key passed in by the caller when being used as a library
-	supportsUnstakedFollower     bool              // True if this is a staked Access node which also supports unstaked access nodes/unstaked consensus follower engines
 	collectionGRPCPort           uint
 	executionGRPCPort            uint
 	pingEnabled                  bool

@@ -16,9 +16,6 @@ func main() {
 
 	// create an observer builder
 	var builder observer.ObserverServiceBuilder = observer.NewObserverNodeBuilder(onb)
-	if builder == nil {
-		return
-	}
 
 	if err := builder.Initialize(); err != nil {
 		onb.Logger.Fatal().Err(err).Send()
