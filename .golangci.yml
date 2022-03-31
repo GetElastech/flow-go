@@ -30,6 +30,7 @@ issues:
     - "builder.Metrics undefined"
     - "builder.ComplianceConfig undefined"
     - "builder.BaseFlags undefined"
+    - "builder.BuildConsensusFollower().Module undefined"
     - "StakedAccessNodeBuilder has no field or method"
     - "FlowAccessNodeBuilder has no field or method"
     - "ObserverNodeBuilder has no field or method"
