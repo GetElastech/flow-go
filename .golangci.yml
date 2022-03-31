@@ -32,4 +32,11 @@ issues:
     # disabling for now
     - path: 'cmd/access/node_build/*' 
       linters:
-        - typecheck
+        - unused
+    - path: 'cmd/observer/node_build/*'
+      linters:
+        - unused
+    - path: 'follower/*'
+      linters:
+        - unused
+
