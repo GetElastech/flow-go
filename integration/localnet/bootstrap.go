@@ -206,7 +206,9 @@ func prepareNodes() []testnet.NodeConfig {
 	}
 
 	for i := 0; i < accessCount; i++ {
-		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess))
+		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
+			cfg.SupportsUnstakedNodes = true
+		}))
 	}
 
 	for i := 0; i < unstakedAccessCount; i++ {
