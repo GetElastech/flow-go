@@ -297,6 +297,7 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 		case flow.RoleAccess:
 			services[container.ContainerName] = prepareAccessService(container, numAccess, n)
 			if bootstrapAccessNodePublicKey == nil {
+				// Collect bootstrap parameters to the first access node added
 				bootstrapAccessNodePublicKey = container.NetworkPubKey()
 				bootstrapAccessNodeAddress = strings.SplitN(container.Address, ":", 2)[0]
 				bootstrapAccessNodeAddress = fmt.Sprintf("localnet_%s_1:%d", bootstrapAccessNodeAddress, RPCPort)
@@ -312,7 +313,7 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 			services[container.ContainerName] = prepareObserverService(
 				container, numAccess, n,
 				bootstrapAccessNodeAddress, bootstrapAccessNodePublicKey, bootstrapAccessNodeContainer)
-			// We treat these as access nodes in numbering to limit the port ranges
+			// We use the port pool of access nodes to limit the port range count
 			numAccess++
 		}
 	}
