@@ -30,6 +30,8 @@ const DefaultMaxHeightRange = 250
 // when recursively searching for a valid snapshot
 const DefaultSnapshotHistoryLimit = 50
 
+var preferredENIdentifiers flow.IdentifierList
+
 type Backend struct {
 	access.API
 	blocks               storage.Blocks
@@ -44,6 +46,7 @@ type Backend struct {
 	chainID              flow.ChainID
 	log                  zerolog.Logger
 	transactionMetrics   module.TransactionMetrics
+	connFactory          ConnectionFactory
 	maxHeightRange       uint
 	snapshotHistoryLimit int
 }

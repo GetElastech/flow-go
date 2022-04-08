@@ -7,6 +7,8 @@ import (
 	"time"
 
 	accessproto "github.com/onflow/flow/protobuf/go/flow/access"
+	entitiesproto "github.com/onflow/flow/protobuf/go/flow/entities"
+	execproto "github.com/onflow/flow/protobuf/go/flow/execution"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -180,6 +182,7 @@ func (suite *Suite) TestSendTransaction() {
 		staticCollectionRPC:  suite.colClient,
 		transactionMetrics:   metrics.NewNoopCollector(),
 		maxHeightRange:       DefaultMaxHeightRange,
+		transactions:         suite.transactions,
 		log:                  suite.log,
 		snapshot:             suite.snapshot,
 		snapshotHistoryLimit: DefaultSnapshotHistoryLimit,
@@ -187,6 +190,129 @@ func (suite *Suite) TestSendTransaction() {
 	// Send transaction
 	err := backend.SendTransaction(context.Background(), &transaction.TransactionBody)
 	suite.Require().NoError(err)
+}
+
+func (suite *Suite) TestGetTransaction() {
+	suite.state.On("Sealed").Return(suite.snapshot, nil).Maybe()
+
+	transaction := unittest.TransactionFixture()
+	expected := transaction.TransactionBody
+
+	suite.transactions.
+		On("ByID", transaction.ID()).
+		Return(&expected, nil).
+		Once()
+
+	backend := &Backend{
+		state:                suite.state,
+		transactions:         suite.transactions,
+		chainID:              suite.chainID,
+		transactionMetrics:   metrics.NewNoopCollector(),
+		maxHeightRange:       DefaultMaxHeightRange,
+		log:                  suite.log,
+		snapshotHistoryLimit: DefaultSnapshotHistoryLimit,
+	}
+
+	actual, err := backend.GetTransaction(context.Background(), transaction.ID())
+	suite.checkResponse(actual, err)
+
+	suite.Require().Equal(expected, *actual)
+
+	suite.assertAllExpectations()
+}
+
+func (suite *Suite) TestGetAccount() {
+	suite.state.On("Sealed").Return(suite.snapshot, nil).Maybe()
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+
+	address, err := suite.chainID.Chain().NewAddressGenerator().NextAddress()
+	suite.Require().NoError(err)
+
+	account := &entitiesproto.Account{
+		Address: address.Bytes(),
+	}
+	ctx := context.Background()
+
+	// setup the latest sealed block
+	block := unittest.BlockFixture()
+	header := block.Header          // create a mock header
+	seal := unittest.Seal.Fixture() // create a mock seal
+	seal.BlockID = header.ID()      // make the seal point to the header
+
+	suite.snapshot.
+		On("Head").
+		Return(header, nil).
+		Once()
+
+	// create the expected execution API request
+	blockID := header.ID()
+	exeReq := &execproto.GetAccountAtBlockIDRequest{
+		BlockId: blockID[:],
+		Address: address.Bytes(),
+	}
+
+	// create the expected execution API response
+	exeResp := &execproto.GetAccountAtBlockIDResponse{
+		Account: account,
+	}
+
+	// setup the execution client mock
+	suite.execClient.
+		On("GetAccountAtBlockID", ctx, exeReq).
+		Return(exeResp, nil).
+		Once()
+
+	receipts, ids := suite.setupReceipts(&block)
+
+	suite.snapshot.On("Identities", mock.Anything).Return(ids, nil)
+	// create a mock connection factory
+	connFactory := new(backendmock.ConnectionFactory)
+	connFactory.On("GetExecutionAPIClient", mock.Anything).Return(suite.execClient, &mockCloser{}, nil)
+
+	// create the handler with the mock
+	backend := &Backend{
+		state:                suite.state,
+		headers:              suite.headers,
+		executionReceipts:    suite.receipts,
+		executionResults:     suite.results,
+		transactions:         suite.transactions,
+		chainID:              suite.chainID,
+		transactionMetrics:   metrics.NewNoopCollector(),
+		connFactory:          connFactory,
+		maxHeightRange:       DefaultMaxHeightRange,
+		log:                  suite.log,
+		snapshotHistoryLimit: DefaultSnapshotHistoryLimit,
+	}
+	preferredENIdentifiers = flow.IdentifierList{receipts[0].ExecutorID}
+
+	suite.Run("happy path - valid request and valid response", func() {
+		account, err := backend.GetAccountAtLatestBlock(ctx, address)
+		suite.checkResponse(account, err)
+
+		suite.Require().Equal(address, account.Address)
+
+		suite.assertAllExpectations()
+	})
+}
+
+type mockCloser struct{}
+
+func (mc *mockCloser) Close() error { return nil }
+
+func (suite *Suite) setupReceipts(block *flow.Block) ([]*flow.ExecutionReceipt, flow.IdentityList) {
+	ids := unittest.IdentityListFixture(2, unittest.WithRole(flow.RoleExecution))
+	receipt1 := unittest.ReceiptForBlockFixture(block)
+	receipt1.ExecutorID = ids[0].NodeID
+	receipt2 := unittest.ReceiptForBlockFixture(block)
+	receipt2.ExecutorID = ids[1].NodeID
+	receipt1.ExecutionResult = receipt2.ExecutionResult
+
+	receipts := flow.ExecutionReceiptList{receipt1, receipt2}
+	suite.receipts.
+		On("ByBlockID", block.ID()).
+		Return(receipts, nil)
+
+	return receipts, ids
 }
 
 func (suite *Suite) checkResponse(resp interface{}, err error) {
