@@ -135,6 +135,39 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 			builder.CollectionRPC = access.NewAccessAPIClient(collectionRPCConn)
 			return nil
 		}).
+		Module("observer proxy", func(node *cmd.NodeConfig) error {
+			// collection node address is optional (if not specified, collection nodes will be chosen at random)
+			if len(builder.ObserverServiceConfig.bootstrapNodeAddresses) == 0 {
+				node.Logger.Info().Msg("using a dynamic collection node address")
+				return nil
+			}
+
+			err := builder.deriveBootstrapPeerIdentities()
+			if err != nil {
+				node.Logger.Info().Msg(fmt.Sprintf("cannot collect observer bootstrap peer identities %s", err.Error()))
+				return nil
+			}
+
+			for _, identity := range builder.bootstrapIdentities {
+				node.Logger.Info().
+					Str("observer_node", builder.rpcConf.UnsecureGRPCListenAddr).
+					Msg(fmt.Sprintf("proxying %s to %s ...", builder.rpcConf.UnsecureGRPCListenAddr, identity.Address))
+			}
+			proxy, err := FlowAPIService(builder.bootstrapIdentities, builder.rpcConf.CollectionClientTimeout)
+			if err != nil {
+				node.Logger.Error().
+					Str("observer_node", err.Error()).
+					Msg(fmt.Sprintf("proxying %s failed", builder.rpcConf.UnsecureGRPCListenAddr))
+				return err
+			}
+			if proxy == nil {
+				node.Logger.Info().Msg("cannot create flow proxy")
+				return nil
+			}
+			builder.Proxy = proxy
+
+			return nil
+		}).
 		Module("historical access node clients", func(node *cmd.NodeConfig) error {
 			addrs := strings.Split(builder.rpcConf.HistoricalAccessAddrs, ",")
 			for _, addr := range addrs {
@@ -214,6 +247,7 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 				builder.rpcMetricsEnabled,
 				builder.apiRatelimits,
 				builder.apiBurstlimits,
+				builder.Proxy,
 			)
 			return builder.RpcEng, nil
 		}).
