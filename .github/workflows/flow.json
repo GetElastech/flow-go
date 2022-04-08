@@ -1,2 +1,2 @@
-{"networks": {"localnet": "127.0.0.1:3569","observer": "127.0.0.1:3573"}}
+{"networks": {"access": "127.0.0.1:3569","secure_access":{"host":"127.0.0.1:3570","key":"34d72663e63753c7a07ed478677fe0719c69288b5524e1c9fd7d2eee7fde30d587f90a2818f36e0b1f2d0f34064e908318e8a7b9d58804869fc223dba8dae1f3"}, "observer": "127.0.0.1:3573","secure_observer": {"host":"127.0.0.1:3574","key":"34d72663e63753c7a07ed478677fe0719c69288b5524e1c9fd7d2eee7fde30d587f90a2818f36e0b1f2d0f34064e908318e8a7b9d58804869fc223dba8dae1f3"}}}
 
