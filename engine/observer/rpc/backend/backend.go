@@ -5,7 +5,10 @@ import (
 	"fmt"
 
 	accessproto "github.com/onflow/flow/protobuf/go/flow/access"
+	execproto "github.com/onflow/flow/protobuf/go/flow/execution"
 	"github.com/rs/zerolog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/onflow/flow-go/access"
 	"github.com/onflow/flow-go/model/flow"
@@ -69,4 +72,17 @@ func (b *Backend) Ping(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (b *Backend) tryExecuteScript(ctx context.Context, execNode *flow.Identity, req execproto.ExecuteScriptAtBlockIDRequest) ([]byte, error) {
+	execRPCClient, closer, err := b.connFactory.GetExecutionAPIClient(execNode.Address)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create client for execution node %s: %v", execNode.String(), err)
+	}
+	defer closer.Close()
+	execResp, err := execRPCClient.ExecuteScriptAtBlockID(ctx, &req)
+	if err != nil {
+		return nil, status.Errorf(status.Code(err), "failed to execute the script on the execution node %s: %v", execNode.String(), err)
+	}
+	return execResp.GetValue(), nil
 }

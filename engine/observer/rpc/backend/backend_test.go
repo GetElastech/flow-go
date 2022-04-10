@@ -12,6 +12,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	access "github.com/onflow/flow-go/engine/access/mock"
 	backendmock "github.com/onflow/flow-go/engine/access/rpc/backend/mock"
@@ -292,6 +294,144 @@ func (suite *Suite) TestGetAccount() {
 		suite.Require().Equal(address, account.Address)
 
 		suite.assertAllExpectations()
+	})
+}
+
+func (suite *Suite) TestGetAccountAtBlockHeight() {
+	suite.state.On("Sealed").Return(suite.snapshot, nil).Maybe()
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+
+	height := uint64(5)
+	address := unittest.AddressFixture()
+	account := &entitiesproto.Account{
+		Address: address.Bytes(),
+	}
+	ctx := context.Background()
+
+	// create a mock block header
+	b := unittest.BlockFixture()
+	h := b.Header
+
+	// setup headers storage to return the header when queried by height
+	suite.headers.
+		On("ByHeight", height).
+		Return(h, nil).
+		Once()
+
+	receipts, ids := suite.setupReceipts(&b)
+	suite.snapshot.On("Identities", mock.Anything).Return(ids, nil)
+
+	// create a mock connection factory
+	connFactory := new(backendmock.ConnectionFactory)
+	connFactory.On("GetExecutionAPIClient", mock.Anything).Return(suite.execClient, &mockCloser{}, nil)
+
+	// create the expected execution API request
+	blockID := h.ID()
+	exeReq := &execproto.GetAccountAtBlockIDRequest{
+		BlockId: blockID[:],
+		Address: address.Bytes(),
+	}
+
+	// create the expected execution API response
+	exeResp := &execproto.GetAccountAtBlockIDResponse{
+		Account: account,
+	}
+
+	// setup the execution client mock
+	suite.execClient.
+		On("GetAccountAtBlockID", ctx, exeReq).
+		Return(exeResp, nil).
+		Once()
+
+	// create the handler with the mock
+	backend := &Backend{
+		state:                suite.state,
+		headers:              suite.headers,
+		executionReceipts:    suite.receipts,
+		executionResults:     suite.results,
+		transactions:         suite.transactions,
+		chainID:              flow.Testnet,
+		transactionMetrics:   metrics.NewNoopCollector(),
+		connFactory:          connFactory,
+		maxHeightRange:       DefaultMaxHeightRange,
+		log:                  suite.log,
+		snapshotHistoryLimit: DefaultSnapshotHistoryLimit,
+	}
+
+	preferredENIdentifiers = flow.IdentifierList{receipts[0].ExecutorID}
+
+	suite.Run("happy path - valid request and valid response", func() {
+		account, err := backend.GetAccountAtBlockHeight(ctx, address, height)
+		suite.checkResponse(account, err)
+
+		suite.Require().Equal(address, account.Address)
+
+		suite.assertAllExpectations()
+	})
+}
+
+// TestExecuteScriptOnExecutionNode tests the method backend.scripts.executeScriptOnExecutionNode for script execution
+func (suite *Suite) TestExecuteScriptOnExecutionNode() {
+
+	// create a mock connection factory
+	connFactory := new(backendmock.ConnectionFactory)
+	connFactory.On("GetExecutionAPIClient", mock.Anything).
+		Return(suite.execClient, &mockCloser{}, nil)
+
+	// create the handler with the mock
+	backend := &Backend{
+		state:                suite.state,
+		headers:              suite.headers,
+		executionReceipts:    suite.receipts,
+		executionResults:     suite.results,
+		transactions:         suite.transactions,
+		chainID:              flow.Mainnet,
+		transactionMetrics:   metrics.NewNoopCollector(),
+		connFactory:          connFactory,
+		maxHeightRange:       DefaultMaxHeightRange,
+		log:                  suite.log,
+		snapshotHistoryLimit: DefaultSnapshotHistoryLimit,
+	}
+
+	// mock parameters
+	ctx := context.Background()
+	block := unittest.BlockFixture()
+	blockID := block.ID()
+	script := []byte("dummy script")
+	arguments := [][]byte(nil)
+	executionNode := unittest.IdentityFixture(unittest.WithRole(flow.RoleExecution))
+	execReq := execproto.ExecuteScriptAtBlockIDRequest{
+		BlockId:   blockID[:],
+		Script:    script,
+		Arguments: arguments,
+	}
+	execRes := execproto.ExecuteScriptAtBlockIDResponse{
+		Value: []byte{4, 5, 6},
+	}
+
+	suite.Run("happy path script execution success", func() {
+		suite.execClient.On("ExecuteScriptAtBlockID", ctx, &execReq).Return(&execRes, nil).Once()
+		res, err := backend.tryExecuteScript(ctx, executionNode, execReq)
+		suite.execClient.AssertExpectations(suite.T())
+		suite.checkResponse(res, err)
+	})
+
+	suite.Run("script execution failure returns status OK", func() {
+		suite.execClient.On("ExecuteScriptAtBlockID", ctx, &execReq).
+			Return(nil, status.Error(codes.InvalidArgument, "execution failure!")).Once()
+		_, err := backend.tryExecuteScript(ctx, executionNode, execReq)
+		suite.execClient.AssertExpectations(suite.T())
+		suite.Require().Error(err)
+		suite.Require().Equal(status.Code(err), codes.InvalidArgument)
+	})
+
+	suite.Run("execution node internal failure returns status code Internal", func() {
+		suite.execClient.On("ExecuteScriptAtBlockID", ctx, &execReq).
+			Return(nil, status.Error(codes.Internal, "execution node internal error!")).Once()
+		_, err := backend.tryExecuteScript(ctx, executionNode, execReq)
+		suite.execClient.AssertExpectations(suite.T())
+		suite.Require().Error(err)
+		suite.Require().Equal(status.Code(err), codes.Internal)
 	})
 }
 
