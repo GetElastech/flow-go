@@ -31,7 +31,7 @@ const (
 	DefaultExecutionCount      = 1
 	DefaultVerificationCount   = 1
 	DefaultAccessCount         = 1
-	DefaultUnstakedAccessCount = 0
+	DefaultObserverCount = 0
 	DefaultNClusters           = 1
 	DefaultProfiler            = false
 	DefaultConsensusDelay      = 800 * time.Millisecond
@@ -52,7 +52,7 @@ var (
 	executionCount         int
 	verificationCount      int
 	accessCount            int
-	unstakedAccessCount    int
+	observerCount    int
 	nClusters              uint
 	numViewsInStakingPhase uint64
 	numViewsInDKGPhase     uint64
@@ -68,7 +68,7 @@ func init() {
 	flag.IntVar(&executionCount, "execution", DefaultExecutionCount, "number of execution nodes")
 	flag.IntVar(&verificationCount, "verification", DefaultVerificationCount, "number of verification nodes")
 	flag.IntVar(&accessCount, "access", DefaultAccessCount, "number of staked access nodes")
-	flag.IntVar(&unstakedAccessCount, "unstaked-access", DefaultUnstakedAccessCount, "number of un-staked access nodes")
+	flag.IntVar(&observerCount, "observer", DefaultObserverCount, "number of observers")
 	flag.UintVar(&nClusters, "nclusters", DefaultNClusters, "number of collector clusters")
 	flag.Uint64Var(&numViewsEpoch, "epoch-length", 10000, "number of views in epoch")
 	flag.Uint64Var(&numViewsInStakingPhase, "epoch-staking-phase-length", 2000, "number of views in epoch staking phase")
@@ -88,8 +88,8 @@ func main() {
 	fmt.Printf("- Consensus: %d\n", consensusCount)
 	fmt.Printf("- Execution: %d\n", executionCount)
 	fmt.Printf("- Verification: %d\n", verificationCount)
-	fmt.Printf("- Staked Access: %d\n", accessCount)
-	fmt.Printf("- Unstaked Access: %d\n\n", unstakedAccessCount)
+	fmt.Printf("- Access: %d\n", accessCount)
+	fmt.Printf("- Observer: %d\n\n", observerCount)
 
 	nodes := prepareNodes()
 
@@ -209,7 +209,7 @@ func prepareNodes() []testnet.NodeConfig {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess))
 	}
 
-	for i := 0; i < unstakedAccessCount; i++ {
+	for i := 0; i < observerCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
 			cfg.SupportsUnstakedNodes = true
 		}))
