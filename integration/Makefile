@@ -3,10 +3,10 @@ COVER_PROFILE := cover.out
 
 # Run the integration test suite
 .PHONY: integration-test
-integration-test: access-tests ghost-tests mvp-tests execution-tests verification-tests collection-tests epochs-tests network-tests consensus-tests
+integration-test: access-tests observer-tests ghost-tests mvp-tests execution-tests verification-tests collection-tests epochs-tests network-tests consensus-tests
 
 .PHONY: ci-integration-test
-ci-integration-test: access-tests ghost-tests mvp-tests epochs-tests consensus-tests execution-tests verification-tests network-tests collection-tests
+ci-integration-test: access-tests observer-tests ghost-tests mvp-tests epochs-tests consensus-tests execution-tests verification-tests network-tests collection-tests
 
 .PHONY: benchmark
 benchmark:
@@ -28,6 +28,10 @@ test:
 .PHONY: access-tests
 access-tests:
 	GO111MODULE=on go test $(if $(VERBOSE),-v,) $(if $(JSON_OUTPUT),-json,) $(if $(NUM_RUNS),-count $(NUM_RUNS),) -tags relic ./tests/access/...
+
+.PHONY: observer-tests
+observer-tests:
+	GO111MODULE=on go test $(if $(VERBOSE),-v,) $(if $(JSON_OUTPUT),-json,) $(if $(NUM_RUNS),-count $(NUM_RUNS),) -tags relic ./tests/observer/...
 
 .PHONY: collection-tests
 collection-tests:
