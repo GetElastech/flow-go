@@ -174,7 +174,7 @@ func main() {
 		hex.Encode(output, keyBytes)
 
 		// write to file
-		outputFile := fmt.Sprintf("%s/private-root-information/observerr-key-%d", BootstrapDir, i)
+		outputFile := fmt.Sprintf("%s/private-root-information/observer-key-%d", BootstrapDir, i)
 		err = ioutil.WriteFile(outputFile, output, 0600)
 		if err != nil {
 			panic(err)
