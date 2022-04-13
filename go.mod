@@ -18,6 +18,7 @@ require (
 	github.com/ethereum/go-ethereum v1.9.13
 	github.com/fxamacker/cbor/v2 v2.3.1-0.20211029162100-5d5d7c3edd41
 	github.com/gammazero/workerpool v1.1.2
+	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
