@@ -1,49 +1,52 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
-	"github.com/plus3it/gorecurcopy"
-	"gopkg.in/yaml.v2"
-
+	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
+	"github.com/onflow/flow-go/cmd/bootstrap/utils"
 	"github.com/onflow/flow-go/cmd/build"
+	"github.com/onflow/flow-go/crypto"
 	"github.com/onflow/flow-go/integration/testnet"
 	"github.com/onflow/flow-go/model/bootstrap"
 	"github.com/onflow/flow-go/model/flow"
+	"github.com/plus3it/gorecurcopy"
 )
 
 const (
-	BootstrapDir               = "./bootstrap"
-	ProfilerDir                = "./profiler"
-	DataDir                    = "./data"
-	TrieDir                    = "./trie"
-	DockerComposeFile          = "./docker-compose.nodes.yml"
-	DockerComposeFileVersion   = "3.7"
-	PrometheusTargetsFile      = "./targets.nodes.json"
-	DefaultCollectionCount     = 3
-	DefaultConsensusCount      = 3
-	DefaultExecutionCount      = 1
-	DefaultVerificationCount   = 1
-	DefaultAccessCount         = 1
-	DefaultObserverCount = 0
-	DefaultNClusters           = 1
-	DefaultProfiler            = false
-	DefaultConsensusDelay      = 800 * time.Millisecond
-	DefaultCollectionDelay     = 950 * time.Millisecond
-	AccessAPIPort              = 3569
-	ExecutionAPIPort           = 3600
-	MetricsPort                = 8080
-	RPCPort                    = 9000
-	SecuredRPCPort             = 9001
-	AdminToolPort              = 9002
-	AdminToolLocalPort         = 3700
-	HTTPPort                   = 8000
+	BootstrapDir             = "./bootstrap"
+	ProfilerDir              = "./profiler"
+	DataDir                  = "./data"
+	TrieDir                  = "./trie"
+	DockerComposeFile        = "./docker-compose.nodes.yml"
+	DockerComposeFileVersion = "3.7"
+	PrometheusTargetsFile    = "./targets.nodes.json"
+	DefaultCollectionCount   = 3
+	DefaultConsensusCount    = 3
+	DefaultExecutionCount    = 1
+	DefaultVerificationCount = 1
+	DefaultAccessCount       = 1
+	DefaultObserverCount     = 0
+	DefaultNClusters         = 1
+	DefaultProfiler          = false
+	DefaultConsensusDelay    = 800 * time.Millisecond
+	DefaultCollectionDelay   = 950 * time.Millisecond
+	AccessAPIPort            = 3569
+	ExecutionAPIPort         = 3600
+	MetricsPort              = 8080
+	RPCPort                  = 9000
+	SecuredRPCPort           = 9001
+	AdminToolPort            = 9002
+	AdminToolLocalPort       = 3700
+	HTTPPort                 = 8000
 )
 
 var (
@@ -52,7 +55,7 @@ var (
 	executionCount         int
 	verificationCount      int
 	accessCount            int
-	observerCount    int
+	observerCount          int
 	nClusters              uint
 	numViewsInStakingPhase uint64
 	numViewsInDKGPhase     uint64
@@ -154,6 +157,27 @@ func main() {
 	_, _, _, containers, _, err := testnet.BootstrapNetwork(conf, BootstrapDir)
 	if err != nil {
 		panic(err)
+	}
+
+	// generate localnet observer networking keys
+	for i := 0; i < observerCount; i++ {
+		networkSeed := cmd.GenerateRandomSeed(crypto.KeyGenSeedMinLenECDSASecp256k1)
+		networkKey, err := utils.GenerateUnstakedNetworkingKey(networkSeed)
+		if err != nil {
+			panic(err)
+		}
+
+		// hex encode and write to file
+		keyBytes := networkKey.Encode()
+		output := make([]byte, hex.EncodedLen(len(keyBytes)))
+		hex.Encode(output, keyBytes)
+
+		// write to file
+		outputFile := fmt.Sprintf("%s/private-node-info/observer_key-%d", BootstrapDir, i)
+		err = ioutil.WriteFile(outputFile, output, 0600)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	fmt.Println("Node bootstrapping data generated...")
