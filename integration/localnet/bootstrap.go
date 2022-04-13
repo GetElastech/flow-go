@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/go-yaml/yaml"
 	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
 	"github.com/onflow/flow-go/cmd/bootstrap/utils"
 	"github.com/onflow/flow-go/cmd/build"
@@ -173,7 +174,7 @@ func main() {
 		hex.Encode(output, keyBytes)
 
 		// write to file
-		outputFile := fmt.Sprintf("%s/private-node-info/observer_key-%d", BootstrapDir, i)
+		outputFile := fmt.Sprintf("%s/private-root-information/observerr-key-%d", BootstrapDir, i)
 		err = ioutil.WriteFile(outputFile, output, 0600)
 		if err != nil {
 			panic(err)
