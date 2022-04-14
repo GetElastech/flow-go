@@ -286,6 +286,10 @@ func main() {
 	}
 
 	fmt.Println()
+	
+	for i := 0; i < observerCount; i++ {
+		fmt.Printf("Observer %d Flow API will be accessible at localhost:%d\n", i+1, (accessCount*2)+(AccessAPIPort)+2*i)
+	}
 	fmt.Printf("Access Gateway (%s) libp2p public network key: %s\n", "access_1", accessNetworkPubKey)
 
 	fmt.Println()
