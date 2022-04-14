@@ -3,7 +3,8 @@ package access
 import (
 	"context"
 	"fmt"
-//	"net"
+
+	//	"net"
 	"testing"
 	"time"
 
@@ -54,14 +55,14 @@ func (suite *ObserverSuite) SetupTest() {
 	}()
 
 	nodeConfigs := []testnet.NodeConfig{
-		// testnet.NewNodeConfig(flow.RoleObserverService, testnet.WithLogLevel(zerolog.InfoLevel)),
+		testnet.NewNodeConfig(flow.RoleObserverService, testnet.WithLogLevel(zerolog.InfoLevel)),
 	}
 
-// need one dummy execution node (unused ghost)
-	accessConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.InfoLevel))
+	// need one access node
+	accessConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.FatalLevel))
 	nodeConfigs = append(nodeConfigs, accessConfig)
 
-	// need one dummy execution node (unused ghost)
+	// need one execution node
 	exeConfig := testnet.NewNodeConfig(flow.RoleExecution, testnet.WithLogLevel(zerolog.FatalLevel))
 	nodeConfigs = append(nodeConfigs, exeConfig)
 
@@ -92,13 +93,6 @@ func (suite *ObserverSuite) SetupTest() {
 	suite.net.Start(suite.ctx)
 }
 
-/*func (suite *ObserverSuite) TestHTTPProxyPortOpen() {
-	httpProxyAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIProxyPort])
-	conn, err := net.DialTimeout("tcp", httpProxyAddress, 1*time.Second)
-	require.NoError(suite.T(), err, "http proxy port not open on the access node")
-	conn.Close()
-}*/
-
 func (suite *ObserverSuite) TestObserver() {
 	gRPCAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort])
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -115,11 +109,10 @@ func (suite *ObserverSuite) TestObserver() {
 	require.NoError(suite.T(), err, "insecure grpc port not open on the observer node")
 
 	accid := "0xf8d6e0586b0a20c7"
-	
+
 	accresp, err := grpcClient.GetAccountAtLatestBlock(context.Background(), &access.GetAccountAtLatestBlockRequest{
 		Address: flow.HexToAddress(accid).Bytes(),
 	})
 	require.NoErrorf(suite.T(), err, "account %s does not exist", accid)
-	suite.T().Logf("Account: %+v", accresp.Account)
 	assert.NotNil(suite.T(), accresp.Account, "account not found")
 }
