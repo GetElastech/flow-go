@@ -3,8 +3,9 @@ package observer
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/onflow/flow-go/apiservice"
 	"time"
+
+	"github.com/onflow/flow-go/apiservice"
 
 	"github.com/onflow/flow/protobuf/go/flow/access"
 	"github.com/rs/zerolog"

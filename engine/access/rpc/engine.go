@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/onflow/flow-go/access"
-	observer "github.com/onflow/flow-go/apiservice"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/onflow/flow-go/access"
+	observer "github.com/onflow/flow-go/apiservice"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	accessproto "github.com/onflow/flow/protobuf/go/flow/access"
