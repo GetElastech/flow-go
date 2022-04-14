@@ -170,7 +170,6 @@ func main() {
 	for _, s := range containers {
 		if s.ContainerName == "access_1" {
 			accessNetworkPubKey = s.NetworkPubKey().String()[2:]
-			fmt.Printf("Access gateway (%s) libp2p public network key: %s\n", s.ContainerName, accessNetworkPubKey)
 			break
 		}
 	}
@@ -285,6 +284,9 @@ func main() {
 	for i := 0; i < executionCount; i++ {
 		fmt.Printf("Execution API %d will be accessible at localhost:%d\n", i+1, ExecutionAPIPort+i)
 	}
+
+	fmt.Println()
+	fmt.Printf("Access Gateway (%s) libp2p public network key: %s\n", "access_1", accessNetworkPubKey)
 
 	fmt.Println()
 
