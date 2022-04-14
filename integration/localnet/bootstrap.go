@@ -161,7 +161,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Node bootstrapping data generated...")
+	fmt.Println("Flow network bootstrapping data generated...")
 
 	services := prepareServices(containers)
 
@@ -221,27 +221,15 @@ func main() {
 				"BINSTAT_DMP_PATH",
 			},
 		}
-
-		// find a properly configured access node's public key
-		for i, s := range containers {
-			if s.ContainerName == "access_1" {
-				accessNetworkPubKey := s.NetworkPubKey().String()[2:]
-				fmt.Printf("#%d: %s NetworkPubKey=%s\n", i, s.ContainerName, accessNetworkPubKey)
-				service.Command = append(service.Command, fmt.Sprintf("--bootstrap-node-public-keys=%s", accessNetworkPubKey))
-				break
-			}
-		}
-
-		// remaining services of this role must depend on first service
+		
+		// observer services reply on first access service
 		service.DependsOn = []string{
 			fmt.Sprintf("access_1"),
 		}
-
 		service.Ports = []string{
 			fmt.Sprintf("%d:%d", (accessCount*2)+(AccessAPIPort)+2*i, RPCPort),
 			fmt.Sprintf("%d:%d", (accessCount*2)+AccessAPIPort+(2*i+1), SecuredRPCPort),
 		}
-
 		services[observerName] = service
 
 		// make the observer private key
@@ -262,6 +250,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		fmt.Println("Observer services bootstrapping data generated...")
 	}
 
 	err = writeDockerComposeConfig(services)
