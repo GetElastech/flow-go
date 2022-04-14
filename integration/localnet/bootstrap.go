@@ -188,7 +188,7 @@ func main() {
 			Image: fmt.Sprintf("localnet-observer"),
 			Command: []string{
 				fmt.Sprintf("--staked=false"),
-				fmt.Sprintf("--bootstrap-node-address=access_1:1234"),
+				fmt.Sprintf("--bootstrap-node-addresses=access_1:1234"),
 				fmt.Sprintf("--bootstrap-node-public-keys="),
 				fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/observer-0-key"),
 				fmt.Sprintf("--bind=0.0.0.0:0"),
@@ -242,7 +242,7 @@ func main() {
 		}
 
 		service.Ports = []string{
-			fmt.Sprintf("%d:%d", (accessCount*2)+AccessAPIPort+2*i, RPCPort),
+			fmt.Sprintf("%d:%d", (accessCount*2)+(AccessAPIPort)+2*i, RPCPort),
 			fmt.Sprintf("%d:%d", (accessCount*2)+AccessAPIPort+(2*i+1), SecuredRPCPort),
 		}
 
