@@ -41,6 +41,7 @@ const (
 	DefaultConsensusDelay    = 800 * time.Millisecond
 	DefaultCollectionDelay   = 950 * time.Millisecond
 	AccessAPIPort            = 3569
+	AccessPubNetworkPort     = 1234
 	ExecutionAPIPort         = 3600
 	MetricsPort              = 8080
 	RPCPort                  = 9000
@@ -160,8 +161,92 @@ func main() {
 		panic(err)
 	}
 
-	// generate localnet observer networking keys
+	fmt.Println("Node bootstrapping data generated...")
+
+	services := prepareServices(containers)
+
+	// generate observer networking keys
 	for i := 0; i < observerCount; i++ {
+		//
+		observerName := fmt.Sprintf("observer_%s", i+1)
+
+		// create a data dir for the node
+		dataDir := "./" + filepath.Join(DataDir, observerName)
+		err := os.MkdirAll(dataDir, 0755)
+		if err != nil && !os.IsExist(err) {
+			panic(err)
+		}
+
+		// create the profiler dir for the node
+		profilerDir := "./" + filepath.Join(ProfilerDir, observerName)
+		err = os.MkdirAll(profilerDir, 0755)
+		if err != nil && !os.IsExist(err) {
+			panic(err)
+		}
+
+		service := Service{
+			Image: fmt.Sprintf("localnet-observer"),
+			Command: []string{
+				fmt.Sprintf("--staked=false"),
+				fmt.Sprintf("--bootstrap-node-address=access_1:1234"),
+				fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/observer-0-key"),
+				fmt.Sprintf("--bind=0.0.0.0:0"),
+				fmt.Sprintf("--tracer-enabled=false"),
+				///
+				fmt.Sprintf("--rpc-addr=%s:%d", observerName, RPCPort),
+				fmt.Sprintf("--secure-rpc-addr=%s:%d", observerName, SecuredRPCPort),
+				fmt.Sprintf("--http-addr=%s:%d", observerName, HTTPPort),
+				fmt.Sprintf("--collection-ingress-port=%d", RPCPort),
+				"--log-tx-time-to-finalized",
+				"--log-tx-time-to-executed",
+				"--log-tx-time-to-finalized-executed",
+				"--bootstrapdir=/bootstrap",
+				"--datadir=/data/protocol",
+				"--secretsdir=/data/secret",
+				"--loglevel=DEBUG",
+				fmt.Sprintf("--profiler-enabled=%t", false),
+				// TODO change it to flag
+				fmt.Sprintf("--tracer-enabled=%t", false),
+				"--profiler-dir=/profiler",
+				"--profiler-interval=2m",
+			},
+			Volumes: []string{
+				fmt.Sprintf("%s:/bootstrap:z", BootstrapDir),
+				fmt.Sprintf("%s:/profiler:z", profilerDir),
+				fmt.Sprintf("%s:/data:z", dataDir),
+			},
+			Environment: []string{
+				"JAEGER_AGENT_HOST=jaeger",
+				"JAEGER_AGENT_PORT=6831",
+				// NOTE: these env vars are not set by default, but can be set [1] to enable binstat logging:
+				// [1] https://docs.docker.com/compose/environment-variables/#pass-environment-variables-to-containers
+				"BINSTAT_ENABLE",
+				"BINSTAT_LEN_WHAT",
+				"BINSTAT_DMP_NAME",
+				"BINSTAT_DMP_PATH",
+			},
+		}
+
+		//for i, s := range containers {
+		//	fmt.Printf("#%d: %s NetworkPubKey=%s\n", i, s.ContainerName)
+		//	if s.ContainerName == "access_1" {
+		//		accessNetworkPubKey := s.NetworkPubKey().String()[2:]
+		//		service.Command = append(service.Command, fmt.Sprintf("--bootstrap-node-public-keys=%s", accessNetworkPubKey))
+		//		break
+		//	}
+		//}
+
+		// remaining services of this role must depend on first service
+		service.DependsOn = []string{
+			fmt.Sprintf("access_1"),
+		}
+
+		service.Ports = []string{
+			fmt.Sprintf("%d:%d", accessCount+AccessAPIPort+2*i, RPCPort),
+			fmt.Sprintf("%d:%d", accessCount+AccessAPIPort+(2*i+1), SecuredRPCPort),
+		}
+
+		// make the key
 		networkSeed := cmd.GenerateRandomSeed(crypto.KeyGenSeedMinLenECDSASecp256k1)
 		networkKey, err := utils.GenerateUnstakedNetworkingKey(networkSeed)
 		if err != nil {
@@ -174,16 +259,12 @@ func main() {
 		hex.Encode(output, keyBytes)
 
 		// write to file
-		outputFile := fmt.Sprintf("%s/private-root-information/observer-%d-key", BootstrapDir, i)
+		outputFile := fmt.Sprintf("%s/private-root-information/%s_key", BootstrapDir, observerName, i)
 		err = ioutil.WriteFile(outputFile, output, 0600)
 		if err != nil {
 			panic(err)
 		}
 	}
-
-	fmt.Println("Node bootstrapping data generated...")
-
-	services := prepareServices(containers)
 
 	err = writeDockerComposeConfig(services)
 	if err != nil {
@@ -201,6 +282,7 @@ func main() {
 
 	for i := 0; i < accessCount; i++ {
 		fmt.Printf("Access API %d will be accessible at localhost:%d\n", i+1, AccessAPIPort+i)
+		fmt.Printf("Access Public Networking %d will be accessible at localhost:%d\n", i+1, AccessPubNetworkPort+i)
 	}
 	for i := 0; i < executionCount; i++ {
 		fmt.Printf("Execution API %d will be accessible at localhost:%d\n", i+1, ExecutionAPIPort+i)
@@ -234,11 +316,11 @@ func prepareNodes() []testnet.NodeConfig {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess))
 	}
 
-	for i := 0; i < observerCount; i++ {
-		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
-			cfg.SupportsUnstakedNodes = true
-		}))
-	}
+	//for i := 0; i < observerCount; i++ {
+	//	nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
+	//		cfg.SupportsUnstakedNodes = true
+	//	}))
+	//}
 
 	return nodes
 }
@@ -502,6 +584,7 @@ func prepareAccessService(container testnet.ContainerConfig, i int, n int) Servi
 	}...)
 
 	service.Ports = []string{
+		fmt.Sprintf("%d:%d", AccessPubNetworkPort+i, AccessPubNetworkPort),
 		fmt.Sprintf("%d:%d", AccessAPIPort+2*i, RPCPort),
 		fmt.Sprintf("%d:%d", AccessAPIPort+(2*i+1), SecuredRPCPort),
 	}
