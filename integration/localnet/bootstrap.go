@@ -281,8 +281,8 @@ func main() {
 	fmt.Print("Bootstrapping success!\n\n")
 
 	for i := 0; i < accessCount; i++ {
-		fmt.Printf("Access API %d will be accessible at localhost:%d\n", i+1, AccessAPIPort+i)
-		fmt.Printf("Access Public Networking %d will be accessible at localhost:%d\n", i+1, AccessPubNetworkPort+i)
+		fmt.Printf("Access %d Flow API will be accessible at localhost:%d\n", i+1, AccessAPIPort+i)
+		fmt.Printf("Access %d secure libp2p access will be accessible at localhost:%d\n", i+1, AccessPubNetworkPort+i)
 	}
 	for i := 0; i < executionCount; i++ {
 		fmt.Printf("Execution API %d will be accessible at localhost:%d\n", i+1, ExecutionAPIPort+i)
