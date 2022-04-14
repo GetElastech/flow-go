@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/onflow/flow-go/apiservice"
 	"strings"
+
+	"github.com/onflow/flow-go/apiservice"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/routing"
@@ -229,6 +230,14 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 			}
 			tlsConfig := grpcutils.DefaultServerTLSConfig(x509Certificate)
 			builder.rpcConf.TransportCredentials = credentials.NewTLS(tlsConfig)
+			return nil
+		}).
+		Module("public network", func(node *cmd.NodeConfig) error {
+			builder.enqueuePublicNetworkInit()
+			return nil
+		}).
+		Module("public network", func(node *cmd.NodeConfig) error {
+			builder.enqueueRelayNetwork()
 			return nil
 		}).
 		Component("RPC engine", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {

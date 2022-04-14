@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
 
 	"github.com/plus3it/gorecurcopy"
 	"gopkg.in/yaml.v2"
