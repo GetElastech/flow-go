@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
@@ -53,8 +54,12 @@ func (suite *ObserverSuite) SetupTest() {
 	}()
 
 	nodeConfigs := []testnet.NodeConfig{
-		testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.InfoLevel)),
+		testnet.NewNodeConfig(flow.RoleObserverService, testnet.WithLogLevel(zerolog.InfoLevel)),
 	}
+
+	// need one dummy execution node (unused ghost)
+	accessConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.FatalLevel), testnet.AsGhost())
+	nodeConfigs = append(nodeConfigs, accessConfig)
 
 	// need one dummy execution node (unused ghost)
 	exeConfig := testnet.NewNodeConfig(flow.RoleExecution, testnet.WithLogLevel(zerolog.FatalLevel), testnet.AsGhost())
@@ -98,8 +103,8 @@ func (suite *ObserverSuite) TestObserver() {
 	gRPCAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort])
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, gRPCAddress, grpc.WithInsecure)
-	require.NoError(suite.T(), err, "http proxy port not open on the access node")
+	conn, err := grpc.DialContext(ctx, gRPCAddress, grpc.WithInsecure())
+	require.NoError(suite.T(), err, "http proxy port not open on the observer node")
 	defer func() {
 		if err := conn.Close(); err != nil {
 			require.NoError(suite.T(), err, "failed to close gRPC connection")
@@ -107,7 +112,12 @@ func (suite *ObserverSuite) TestObserver() {
 	}()
 	grpcClient := access.NewAccessAPIClient(conn)
 	_, err = grpcClient.Ping(context.Background(), &access.PingRequest{})
-	if err != nil {
-		require.NoError(suite.T(), err, "insecure grpc port not open on the access node")
-	}
+	require.NoError(suite.T(), err, "insecure grpc port not open on the observer node")
+
+	accid := "0xf8d6e0586b0a20c7"
+	accresp, err := grpcClient.GetAccount(context.Background(), &access.GetAccountRequest{
+		Address: flow.HexToAddress(accid).Bytes(),
+	})
+	require.NoErrorf(suite.T(), err, "account %s does not exist", accid)
+	assert.NotNil(suite.T(), accresp.Account, "account not found")
 }
