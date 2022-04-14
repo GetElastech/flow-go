@@ -162,7 +162,7 @@ func main() {
 	}
 
 	fmt.Println()
-	fmt.Println("\nFlow network bootstrapping data generated...")
+	fmt.Println("Flow network bootstrapping data generated...")
 
 	services := prepareServices(containers)
 
