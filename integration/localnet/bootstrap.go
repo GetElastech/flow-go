@@ -165,6 +165,16 @@ func main() {
 
 	services := prepareServices(containers)
 
+	// find a properly configured access node's public key
+	var accessNetworkPubKey = ""
+	for i, s := range containers {
+		if s.ContainerName == "access_1" {
+			accessNetworkPubKey = s.NetworkPubKey().String()[2:]
+			fmt.Printf("Access gateway libp2p public network key: %s\n", i, s.ContainerName, accessNetworkPubKey)
+			break
+		}
+	}
+
 	// Generate and bootstrap observer services
 	for i := 0; i < observerCount; i++ {
 		observerName := fmt.Sprintf("observer_%d", i+1)
@@ -188,6 +198,7 @@ func main() {
 			Command: []string{
 				fmt.Sprintf("--staked=false"),
 				fmt.Sprintf("--bootstrap-node-addresses=access_1:1234"),
+				fmt.Sprintf("--bootstrap-node-public-keys=%s", accessNetworkPubKey),
 				fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName),
 				fmt.Sprintf("--bind=0.0.0.0:0"),
 				fmt.Sprintf("--tracer-enabled=false"),
@@ -252,7 +263,7 @@ func main() {
 		}
 	}
 	fmt.Println("Observer services bootstrapping data generated...")
-	
+
 	err = writeDockerComposeConfig(services)
 	if err != nil {
 		panic(err)
@@ -269,7 +280,7 @@ func main() {
 
 	for i := 0; i < accessCount; i++ {
 		fmt.Printf("Access %d Flow API will be accessible at localhost:%d\n", i+1, AccessAPIPort+i)
-		fmt.Printf("Access %d secure libp2p access will be accessible at localhost:%d\n\n", i+1, AccessPubNetworkPort+i)
+		fmt.Printf("Access %d public libp2p access will be accessible at localhost:%d\n\n", i+1, AccessPubNetworkPort+i)
 	}
 	for i := 0; i < executionCount; i++ {
 		fmt.Printf("Execution API %d will be accessible at localhost:%d\n", i+1, ExecutionAPIPort+i)
