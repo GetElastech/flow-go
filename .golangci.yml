@@ -33,3 +33,6 @@ issues:
     - path: 'cmd/access/node_build/*' 
       linters:
         - typecheck
+    - path: 'cmd/observer/node_build/*'
+      linters:
+        - typecheck
