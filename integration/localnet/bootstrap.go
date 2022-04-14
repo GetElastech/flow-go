@@ -167,7 +167,7 @@ func main() {
 
 	// find a properly configured access node's public key
 	var accessNetworkPubKey = ""
-	for i, s := range containers {
+	for _, s := range containers {
 		if s.ContainerName == "access_1" {
 			accessNetworkPubKey = s.NetworkPubKey().String()[2:]
 			fmt.Printf("Access gateway (%s) libp2p public network key: %s\n", s.ContainerName, accessNetworkPubKey)
