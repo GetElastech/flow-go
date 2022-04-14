@@ -189,6 +189,7 @@ func main() {
 			Command: []string{
 				fmt.Sprintf("--staked=false"),
 				fmt.Sprintf("--bootstrap-node-address=access_1:1234"),
+				fmt.Sprintf("--bootstrap-node-public-keys="),
 				fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/observer-0-key"),
 				fmt.Sprintf("--bind=0.0.0.0:0"),
 				fmt.Sprintf("--tracer-enabled=false"),
@@ -226,15 +227,14 @@ func main() {
 				"BINSTAT_DMP_PATH",
 			},
 		}
-
-		//for i, s := range containers {
-		//	fmt.Printf("#%d: %s NetworkPubKey=%s\n", i, s.ContainerName)
-		//	if s.ContainerName == "access_1" {
-		//		accessNetworkPubKey := s.NetworkPubKey().String()[2:]
-		//		service.Command = append(service.Command, fmt.Sprintf("--bootstrap-node-public-keys=%s", accessNetworkPubKey))
-		//		break
-		//	}
-		//}
+		for i, s := range containers {
+			if s.ContainerName == "access_1" {
+				accessNetworkPubKey := s.NetworkPubKey().String()[2:]
+				fmt.Printf("#%d: %s NetworkPubKey=%s\n", i, s.ContainerName, accessNetworkPubKey)
+				service.Command = append(service.Command, fmt.Sprintf("--bootstrap-node-public-keys=%s", accessNetworkPubKey))
+				break
+			}
+		}
 
 		// remaining services of this role must depend on first service
 		service.DependsOn = []string{
