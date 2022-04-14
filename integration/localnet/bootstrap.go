@@ -242,8 +242,8 @@ func main() {
 		}
 
 		service.Ports = []string{
-			fmt.Sprintf("%d:%d", accessCount+AccessAPIPort+2*i, RPCPort),
-			fmt.Sprintf("%d:%d", accessCount+AccessAPIPort+(2*i+1), SecuredRPCPort),
+			fmt.Sprintf("%d:%d", accessCount+1+AccessAPIPort+2*i, RPCPort),
+			fmt.Sprintf("%d:%d", accessCount+1+AccessAPIPort+(2*i+1), SecuredRPCPort),
 		}
 
 		services[observerName] = service
