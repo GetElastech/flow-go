@@ -165,9 +165,8 @@ func main() {
 
 	services := prepareServices(containers)
 
-	// generate observer networking keys
+	// Generate and bootstrap observer services
 	for i := 0; i < observerCount; i++ {
-		//
 		observerName := fmt.Sprintf("observer_%d", i+1)
 
 		// create a data dir for the node
@@ -192,7 +191,6 @@ func main() {
 				fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName),
 				fmt.Sprintf("--bind=0.0.0.0:0"),
 				fmt.Sprintf("--tracer-enabled=false"),
-				///
 				fmt.Sprintf("--rpc-addr=%s:%d", observerName, RPCPort),
 				fmt.Sprintf("--secure-rpc-addr=%s:%d", observerName, SecuredRPCPort),
 				fmt.Sprintf("--http-addr=%s:%d", observerName, HTTPPort),
@@ -204,9 +202,8 @@ func main() {
 				"--datadir=/data/protocol",
 				"--secretsdir=/data/secret",
 				"--loglevel=DEBUG",
-				fmt.Sprintf("--profiler-enabled=%t", false),
-				// TODO change it to flag
-				fmt.Sprintf("--tracer-enabled=%t", false),
+				fmt.Sprintf("--profiler-enabled=%t", true),
+				fmt.Sprintf("--tracer-enabled=%t", true),
 				"--profiler-dir=/profiler",
 				"--profiler-interval=2m",
 			},
@@ -218,14 +215,14 @@ func main() {
 			Environment: []string{
 				"JAEGER_AGENT_HOST=jaeger",
 				"JAEGER_AGENT_PORT=6831",
-				// NOTE: these env vars are not set by default, but can be set [1] to enable binstat logging:
-				// [1] https://docs.docker.com/compose/environment-variables/#pass-environment-variables-to-containers
 				"BINSTAT_ENABLE",
 				"BINSTAT_LEN_WHAT",
 				"BINSTAT_DMP_NAME",
 				"BINSTAT_DMP_PATH",
 			},
 		}
+
+		// find a properly configured access node's public key
 		for i, s := range containers {
 			if s.ContainerName == "access_1" {
 				accessNetworkPubKey := s.NetworkPubKey().String()[2:]
@@ -247,7 +244,7 @@ func main() {
 
 		services[observerName] = service
 
-		// make the key
+		// make the observer private key
 		networkSeed := cmd.GenerateRandomSeed(crypto.KeyGenSeedMinLenECDSASecp256k1)
 		networkKey, err := utils.GenerateUnstakedNetworkingKey(networkSeed)
 		if err != nil {
