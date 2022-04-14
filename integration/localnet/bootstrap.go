@@ -168,7 +168,7 @@ func main() {
 	// generate observer networking keys
 	for i := 0; i < observerCount; i++ {
 		//
-		observerName := fmt.Sprintf("observer_%s", i+1)
+		observerName := fmt.Sprintf("observer_%d", i+1)
 
 		// create a data dir for the node
 		dataDir := "./" + filepath.Join(DataDir, observerName)
