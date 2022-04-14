@@ -170,7 +170,7 @@ func main() {
 	for i, s := range containers {
 		if s.ContainerName == "access_1" {
 			accessNetworkPubKey = s.NetworkPubKey().String()[2:]
-			fmt.Printf("Access gateway libp2p public network key: %s\n", i, s.ContainerName, accessNetworkPubKey)
+			fmt.Printf("Access gateway (%s) libp2p public network key: %s\n", s.ContainerName, accessNetworkPubKey)
 			break
 		}
 	}
