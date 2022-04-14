@@ -161,7 +161,8 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Flow network bootstrapping data generated...")
+	fmt.Println()
+	fmt.Println("\nFlow network bootstrapping data generated...")
 
 	services := prepareServices(containers)
 
@@ -286,7 +287,7 @@ func main() {
 	}
 
 	fmt.Println()
-	
+
 	for i := 0; i < observerCount; i++ {
 		fmt.Printf("Observer %d Flow API will be accessible at localhost:%d\n", i+1, (accessCount*2)+(AccessAPIPort)+2*i)
 	}
