@@ -190,7 +190,7 @@ func main() {
 				fmt.Sprintf("--staked=false"),
 				fmt.Sprintf("--bootstrap-node-addresses=access_1:1234"),
 				fmt.Sprintf("--bootstrap-node-public-keys="),
-				fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/observer-0-key"),
+				fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName),
 				fmt.Sprintf("--bind=0.0.0.0:0"),
 				fmt.Sprintf("--tracer-enabled=false"),
 				///
@@ -261,7 +261,7 @@ func main() {
 		hex.Encode(output, keyBytes)
 
 		// write to file
-		outputFile := fmt.Sprintf("%s/private-root-information/%s_key", BootstrapDir, observerName, i)
+		outputFile := fmt.Sprintf("%s/private-root-information/%s_key", BootstrapDir, observerName)
 		err = ioutil.WriteFile(outputFile, output, 0600)
 		if err != nil {
 			panic(err)
