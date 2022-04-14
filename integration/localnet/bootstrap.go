@@ -221,7 +221,7 @@ func main() {
 				"BINSTAT_DMP_PATH",
 			},
 		}
-		
+
 		// observer services reply on first access service
 		service.DependsOn = []string{
 			fmt.Sprintf("access_1"),
@@ -250,9 +250,9 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("Observer services bootstrapping data generated...")
 	}
-
+	fmt.Println("Observer services bootstrapping data generated...")
+	
 	err = writeDockerComposeConfig(services)
 	if err != nil {
 		panic(err)
