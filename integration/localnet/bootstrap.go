@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/docker/cli/cli/command/service"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 	"github.com/onflow/flow-go/cmd/bootstrap/utils"
 	"github.com/onflow/flow-go/cmd/build"
 	"github.com/onflow/flow-go/crypto"
-	"github.com/onflow/flow-go/integration/testnet"
+	testnet "github.com/onflow/flow-go/integration/testnet"
 	"github.com/onflow/flow-go/model/bootstrap"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/plus3it/gorecurcopy"
@@ -30,6 +31,8 @@ const (
 	DockerComposeFile        = "./docker-compose.nodes.yml"
 	DockerComposeFileVersion = "3.7"
 	PrometheusTargetsFile    = "./targets.nodes.json"
+	DefaultAccessGatewayName = "access_1"
+	DefaultObserverName      = "observer"
 	DefaultCollectionCount   = 3
 	DefaultConsensusCount    = 3
 	DefaultExecutionCount    = 1
@@ -40,7 +43,7 @@ const (
 	DefaultProfiler          = false
 	DefaultConsensusDelay    = 800 * time.Millisecond
 	DefaultCollectionDelay   = 950 * time.Millisecond
-	AccessAPIPort            = 3569
+	FlowAPIPort              = 3569
 	AccessPubNetworkPort     = 1234
 	ExecutionAPIPort         = 3600
 	MetricsPort              = 8080
@@ -83,39 +86,92 @@ func init() {
 	flag.DurationVar(&collectionDelay, "collection-delay", DefaultCollectionDelay, "delay on collection node block proposals")
 }
 
+func generateBootstrapData(flowNetworkConf testnet.NetworkConfig) []testnet.ContainerConfig {
+	// Prepare localnet host folders, mapped to Docker container volumes upon `docker compose up`
+	prepareCommonHostFolders()
+	_, _, _, flowNodeContainerConfigs, _, err := testnet.BootstrapNetwork(flowNetworkConf, BootstrapDir)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Flow test network bootstrapping data generated...")
+	return flowNodeContainerConfigs
+}
+
+// localnet/bootstrap.go generates a docker compose file with images configured for a
+// self-contained Flow network, and other peripheral services, such as Observer services.
+// Private/Public keys and data are removed and re-created for the self-contained localnet
+// environment with every invocation, and are intended solely for testing, not for production.
 func main() {
 	flag.Parse()
 
-	fmt.Println("Bootstrapping a new FLITE network...")
+	// Prepare test node configurations of each type, access, execution, verification, etc
+	flowNodes := prepareFlowNodes()
 
-	fmt.Printf("Node counts:\n")
-	fmt.Printf("- Collection: %d\n", collectionCount)
-	fmt.Printf("- Consensus: %d\n", consensusCount)
-	fmt.Printf("- Execution: %d\n", executionCount)
-	fmt.Printf("- Verification: %d\n", verificationCount)
-	fmt.Printf("- Access: %d\n", accessCount)
-	fmt.Printf("- Observer: %d\n\n", observerCount)
-
-	nodes := prepareNodes()
-
-	opts := []testnet.NetworkConfigOpt{testnet.WithClusters(nClusters)}
+	// Generate a Flow network config for localnet
+	flowNetworkOpts := []testnet.NetworkConfigOpt{testnet.WithClusters(nClusters)}
 	if numViewsEpoch != 0 {
-		opts = append(opts, testnet.WithViewsInEpoch(numViewsEpoch))
+		flowNetworkOpts = append(flowNetworkOpts, testnet.WithViewsInEpoch(numViewsEpoch))
 	}
 	if numViewsInStakingPhase != 0 {
-		opts = append(opts, testnet.WithViewsInStakingAuction(numViewsInStakingPhase))
+		flowNetworkOpts = append(flowNetworkOpts, testnet.WithViewsInStakingAuction(numViewsInStakingPhase))
 	}
 	if numViewsInDKGPhase != 0 {
-		opts = append(opts, testnet.WithViewsInDKGPhase(numViewsInDKGPhase))
+		flowNetworkOpts = append(flowNetworkOpts, testnet.WithViewsInDKGPhase(numViewsInDKGPhase))
 	}
-	conf := testnet.NewNetworkConfig("localnet", nodes, opts...)
+	flowNetworkConf := testnet.NewNetworkConfig("localnet", flowNodes, flowNetworkOpts...)
+	displayFlowNetworkConf(flowNetworkConf)
 
+	// Generate the Flow network bootstrap files for this localnet
+	flowNodeContainerConfigs := generateBootstrapData(flowNetworkConf)
+
+	// Generate Flow network services docker-compose-nodes.yml
+	dockerServices := make(Services)
+	dockerServices = prepareFlowServices(dockerServices, flowNodeContainerConfigs)
+	serviceDisc := prepareServiceDiscovery(flowNodeContainerConfigs)
+	err := writePrometheusConfig(serviceDisc)
+	if err != nil {
+		panic(err)
+	}
+
+	// Generate the Observer services docker-compose-nodes.yml
+	dockerServices = prepareObserverServices(dockerServices, flowNodeContainerConfigs)
+
+	err = writeDockerComposeConfig(dockerServices)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Print("Bootstrapping success!\n\n")
+	displayPortAssignments()
+	fmt.Println()
+
+	fmt.Print("Run \"make start\" to launch the network.\n")
+}
+
+func displayFlowNetworkConf(flowNetworkConf testnet.NetworkConfig) {
 	fmt.Printf("Network config:\n")
-	fmt.Printf("- Clusters: %d\n", conf.NClusters)
-	fmt.Printf("- Epoch Length: %d\n", conf.ViewsInEpoch)
-	fmt.Printf("- Staking Phase Length: %d\n", conf.ViewsInStakingAuction)
-	fmt.Printf("- DKG Phase Length: %d\n", conf.ViewsInDKGPhase)
+	fmt.Printf("- Clusters: %d\n", flowNetworkConf.NClusters)
+	fmt.Printf("- Epoch Length: %d\n", flowNetworkConf.ViewsInEpoch)
+	fmt.Printf("- Staking Phase Length: %d\n", flowNetworkConf.ViewsInStakingAuction)
+	fmt.Printf("- DKG Phase Length: %d\n", flowNetworkConf.ViewsInDKGPhase)
+}
 
+func displayPortAssignments() {
+	for i := 0; i < accessCount; i++ {
+		fmt.Printf("Access %d Flow API will be accessible at localhost:%d\n", i+1, FlowAPIPort+i)
+		fmt.Printf("Access %d public libp2p access will be accessible at localhost:%d\n\n", i+1, AccessPubNetworkPort+i)
+	}
+	for i := 0; i < executionCount; i++ {
+		fmt.Printf("Execution API %d will be accessible at localhost:%d\n", i+1, ExecutionAPIPort+i)
+	}
+	for i := 0; i < observerCount; i++ {
+		fmt.Printf("Observer %d Flow API will be accessible at localhost:%d\n", i+1, (accessCount*2)+(FlowAPIPort)+2*i)
+	}
+	fmt.Println()
+}
+
+func prepareCommonHostFolders() {
+	// Remove and recreate working folders
 	err := os.RemoveAll(BootstrapDir)
 	if err != nil && !os.IsNotExist(err) {
 		panic(err)
@@ -155,177 +211,33 @@ func main() {
 	if err != nil && !os.IsExist(err) {
 		panic(err)
 	}
-
-	_, _, _, containers, _, err := testnet.BootstrapNetwork(conf, BootstrapDir)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println()
-	fmt.Println("Flow network bootstrapping data generated...")
-
-	services := prepareServices(containers)
-
-	// find a properly configured access node's public key
-	var accessNetworkPubKey = ""
-	for _, s := range containers {
-		if s.ContainerName == "access_1" {
-			accessNetworkPubKey = s.NetworkPubKey().String()[2:]
-			break
-		}
-	}
-
-	// Generate and bootstrap observer services
-	for i := 0; i < observerCount; i++ {
-		observerName := fmt.Sprintf("observer_%d", i+1)
-
-		// create a data dir for the node
-		dataDir := "./" + filepath.Join(DataDir, observerName)
-		err := os.MkdirAll(dataDir, 0755)
-		if err != nil && !os.IsExist(err) {
-			panic(err)
-		}
-
-		// create the profiler dir for the node
-		profilerDir := "./" + filepath.Join(ProfilerDir, observerName)
-		err = os.MkdirAll(profilerDir, 0755)
-		if err != nil && !os.IsExist(err) {
-			panic(err)
-		}
-
-		service := Service{
-			Image: fmt.Sprintf("localnet-observer"),
-			Command: []string{
-				fmt.Sprintf("--staked=false"),
-				fmt.Sprintf("--bootstrap-node-addresses=access_1:1234"),
-				fmt.Sprintf("--bootstrap-node-public-keys=%s", accessNetworkPubKey),
-				fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName),
-				fmt.Sprintf("--bind=0.0.0.0:0"),
-				//fmt.Sprintf("--tracer-enabled=false"),
-				fmt.Sprintf("--rpc-addr=%s:%d", observerName, RPCPort),
-				fmt.Sprintf("--secure-rpc-addr=%s:%d", observerName, SecuredRPCPort),
-				fmt.Sprintf("--http-addr=%s:%d", observerName, HTTPPort),
-				fmt.Sprintf("--collection-ingress-port=%d", RPCPort),
-				"--log-tx-time-to-finalized",
-				"--log-tx-time-to-executed",
-				"--log-tx-time-to-finalized-executed",
-				"--bootstrapdir=/bootstrap",
-				"--datadir=/data/protocol",
-				"--secretsdir=/data/secret",
-				"--loglevel=DEBUG",
-				fmt.Sprintf("--profiler-enabled=%t", true),
-				fmt.Sprintf("--tracer-enabled=%t", false),
-				"--profiler-dir=/profiler",
-				"--profiler-interval=2m",
-			},
-			Volumes: []string{
-				fmt.Sprintf("%s:/bootstrap:z", BootstrapDir),
-				fmt.Sprintf("%s:/profiler:z", profilerDir),
-				fmt.Sprintf("%s:/data:z", dataDir),
-			},
-			Environment: []string{
-				"JAEGER_AGENT_HOST=jaeger",
-				"JAEGER_AGENT_PORT=6831",
-				"BINSTAT_ENABLE",
-				"BINSTAT_LEN_WHAT",
-				"BINSTAT_DMP_NAME",
-				"BINSTAT_DMP_PATH",
-			},
-		}
-
-		// observer services reply on first access service
-		service.DependsOn = []string{
-			fmt.Sprintf("access_1"),
-		}
-		service.Ports = []string{
-			fmt.Sprintf("%d:%d", (accessCount*2)+(AccessAPIPort)+2*i, RPCPort),
-			fmt.Sprintf("%d:%d", (accessCount*2)+AccessAPIPort+(2*i+1), SecuredRPCPort),
-		}
-		services[observerName] = service
-
-		// make the observer private key
-		networkSeed := cmd.GenerateRandomSeed(crypto.KeyGenSeedMinLenECDSASecp256k1)
-		networkKey, err := utils.GenerateUnstakedNetworkingKey(networkSeed)
-		if err != nil {
-			panic(err)
-		}
-
-		// hex encode and write to file
-		keyBytes := networkKey.Encode()
-		output := make([]byte, hex.EncodedLen(len(keyBytes)))
-		hex.Encode(output, keyBytes)
-
-		// write to file
-		outputFile := fmt.Sprintf("%s/private-root-information/%s_key", BootstrapDir, observerName)
-		err = ioutil.WriteFile(outputFile, output, 0600)
-		if err != nil {
-			panic(err)
-		}
-	}
-	fmt.Println("Observer services bootstrapping data generated...")
-
-	err = writeDockerComposeConfig(services)
-	if err != nil {
-		panic(err)
-	}
-
-	serviceDisc := prepareServiceDiscovery(containers)
-
-	err = writePrometheusConfig(serviceDisc)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Print("Bootstrapping success!\n\n")
-
-	for i := 0; i < accessCount; i++ {
-		fmt.Printf("Access %d Flow API will be accessible at localhost:%d\n", i+1, AccessAPIPort+i)
-		fmt.Printf("Access %d public libp2p access will be accessible at localhost:%d\n\n", i+1, AccessPubNetworkPort+i)
-	}
-	for i := 0; i < executionCount; i++ {
-		fmt.Printf("Execution API %d will be accessible at localhost:%d\n", i+1, ExecutionAPIPort+i)
-	}
-
-	fmt.Println()
-
-	for i := 0; i < observerCount; i++ {
-		fmt.Printf("Observer %d Flow API will be accessible at localhost:%d\n", i+1, (accessCount*2)+(AccessAPIPort)+2*i)
-	}
-	fmt.Printf("Access Gateway (%s) libp2p public network key: %s\n", "access_1", accessNetworkPubKey)
-
-	fmt.Println()
-
-	fmt.Print("Run \"make start\" to launch the network.\n")
 }
 
-func prepareNodes() []testnet.NodeConfig {
+func prepareFlowNodes() []testnet.NodeConfig {
+	fmt.Println("Bootstrapping a new self-contained, self-connected Flow network...")
+	fmt.Printf("Flow node counts:\n")
+	fmt.Printf("- Collection: %d\n", collectionCount)
+	fmt.Printf("- Consensus: %d\n", consensusCount)
+	fmt.Printf("- Execution: %d\n", executionCount)
+	fmt.Printf("- Verification: %d\n", verificationCount)
+	fmt.Printf("- Access: %d\n", accessCount)
 	nodes := make([]testnet.NodeConfig, 0)
 
 	for i := 0; i < collectionCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleCollection))
 	}
-
 	for i := 0; i < consensusCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleConsensus))
 	}
-
 	for i := 0; i < executionCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleExecution))
 	}
-
 	for i := 0; i < verificationCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleVerification))
 	}
-
 	for i := 0; i < accessCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess))
 	}
-
-	//for i := 0; i < observerCount; i++ {
-	//	nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess, func(cfg *testnet.NodeConfig) {
-	//		cfg.SupportsUnstakedNodes = true
-	//	}))
-	//}
 
 	return nodes
 }
@@ -358,9 +270,7 @@ type Build struct {
 	Target     string
 }
 
-func prepareServices(containers []testnet.ContainerConfig) Services {
-	services := make(Services)
-
+func prepareFlowServices(services Services, containers []testnet.ContainerConfig) Services {
 	var (
 		numCollection   = 0
 		numConsensus    = 0
@@ -368,7 +278,6 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 		numVerification = 0
 		numAccess       = 0
 	)
-
 	for n, container := range containers {
 		switch container.Role {
 		case flow.RoleConsensus:
@@ -396,7 +305,6 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 			numAccess++
 		}
 	}
-
 	return services
 }
 
@@ -416,7 +324,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		panic(err)
 	}
 
-	service := Service{
+	baseService := Service{
 		Image: fmt.Sprintf("localnet-%s", container.Role),
 		Command: []string{
 			fmt.Sprintf("--nodeid=%s", container.NodeID),
@@ -447,7 +355,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		},
 	}
 
-	service.Command = append(service.Command, fmt.Sprintf("--admin-addr=:%v", AdminToolPort))
+	baseService.Command = append(service.Command, fmt.Sprintf("--admin-addr=:%v", AdminToolPort))
 
 	// only specify build config for first service of each role
 	if i == 0 {
@@ -475,7 +383,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		}
 	}
 
-	return service
+	return baseService
 }
 
 // NOTE: accessNodeIDS is a comma separated list of access node IDS
@@ -592,8 +500,8 @@ func prepareAccessService(container testnet.ContainerConfig, i int, n int) Servi
 
 	service.Ports = []string{
 		fmt.Sprintf("%d:%d", AccessPubNetworkPort+i, AccessPubNetworkPort),
-		fmt.Sprintf("%d:%d", AccessAPIPort+2*i, RPCPort),
-		fmt.Sprintf("%d:%d", AccessAPIPort+(2*i+1), SecuredRPCPort),
+		fmt.Sprintf("%d:%d", FlowAPIPort+2*i, RPCPort),
+		fmt.Sprintf("%d:%d", FlowAPIPort+(2*i+1), SecuredRPCPort),
 	}
 
 	return service
@@ -621,16 +529,16 @@ func writeDockerComposeConfig(services Services) error {
 }
 
 // PrometheusServiceDiscovery ...
-type PrometheusServiceDiscovery []PromtheusTargetList
+type PrometheusServiceDiscovery []PrometheusTargetList
 
-// PromtheusTargetList ...
-type PromtheusTargetList struct {
+// PrometheusTargetList ...
+type PrometheusTargetList struct {
 	Targets []string          `json:"targets"`
 	Labels  map[string]string `json:"labels"`
 }
 
-func newPrometheusTargetList(role flow.Role) PromtheusTargetList {
-	return PromtheusTargetList{
+func newPrometheusTargetList(role flow.Role) PrometheusTargetList {
+	return PrometheusTargetList{
 		Targets: make([]string, 0),
 		Labels: map[string]string{
 			"job":  "flow",
@@ -640,7 +548,7 @@ func newPrometheusTargetList(role flow.Role) PromtheusTargetList {
 }
 
 func prepareServiceDiscovery(containers []testnet.ContainerConfig) PrometheusServiceDiscovery {
-	targets := map[flow.Role]PromtheusTargetList{
+	targets := map[flow.Role]PrometheusTargetList{
 		flow.RoleCollection:   newPrometheusTargetList(flow.RoleCollection),
 		flow.RoleConsensus:    newPrometheusTargetList(flow.RoleConsensus),
 		flow.RoleExecution:    newPrometheusTargetList(flow.RoleExecution),
@@ -698,4 +606,148 @@ func openAndTruncate(filename string) (*os.File, error) {
 	}
 
 	return f, nil
+}
+
+//////
+//
+// Observer functions
+//
+
+func prepareObserverProfilerFolder(observerName string) string {
+	// Create a profiler folder (on the host) for the named Observer
+	profilerDir := getObserverProfilerDir(observerName)
+	err := os.MkdirAll(profilerDir, 0755)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+	return profilerDir
+}
+
+func prepareObserverDataFolder(observerName string) string {
+	//for i := 0; i < observerCount; i++ {
+	//	observerName := fmt.Sprintf("%s_%d", DefaultObserverName, i+1)
+	// Create a data folder (on the host) for the named Observer
+	dataDir := getObserverDataDir(observerName)
+	err := os.MkdirAll(dataDir, 0755)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+	return dataDir
+}
+
+func getObserverProfilerDir(observerName string) string {
+	return "./" + filepath.Join(ProfilerDir, observerName)
+}
+
+func getObserverDataDir(observerName string) string {
+	return "./" + filepath.Join(DataDir, observerName)
+}
+
+func getAccessGatewayPublicKey(flowNodeContainerConfigs []testnet.ContainerConfig) (string, error) {
+	for _, container := range flowNodeContainerConfigs {
+		if container.ContainerName == DefaultAccessGatewayName {
+			// remove the "0x"..0000 portion of the key
+			return container.NetworkPubKey().String()[2:], nil
+		}
+	}
+	return "", fmt.Errorf("Unable to find public key for Access Gateway expected in container '%s'", DefaultAccessGatewayName)
+}
+
+func writeObserverPrivateKey(observerName string) {
+	// make the observer private key for named observer
+	// only used for localnet, not for use with production
+	networkSeed := cmd.GenerateRandomSeed(crypto.KeyGenSeedMinLenECDSASecp256k1)
+	networkKey, err := utils.GenerateUnstakedNetworkingKey(networkSeed)
+	if err != nil {
+		panic(err)
+	}
+
+	// hex encode and write to file
+	keyBytes := networkKey.Encode()
+	output := make([]byte, hex.EncodedLen(len(keyBytes)))
+	hex.Encode(output, keyBytes)
+
+	// write to file
+	outputFile := fmt.Sprintf("%s/private-root-information/%s_key", BootstrapDir, observerName)
+	err = ioutil.WriteFile(outputFile, output, 0600)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func prepareObserverService(i int, observerName string, agPublicKey string, profilerDir string, dataDir string) Service {
+	observerService := Service{
+		Image: fmt.Sprintf("localnet-%s", DefaultObserverName),
+		Command: []string{
+			fmt.Sprintf("--staked=false"),
+			fmt.Sprintf("--bootstrap-node-addresses=access_1:1234"),
+			fmt.Sprintf("--bootstrap-node-public-keys=%s", agPublicKey),
+			fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName),
+			fmt.Sprintf("--bind=0.0.0.0:0"),
+			//fmt.Sprintf("--tracer-enabled=false"),
+			fmt.Sprintf("--rpc-addr=%s:%d", observerName, RPCPort),
+			fmt.Sprintf("--secure-rpc-addr=%s:%d", observerName, SecuredRPCPort),
+			fmt.Sprintf("--http-addr=%s:%d", observerName, HTTPPort),
+			fmt.Sprintf("--collection-ingress-port=%d", RPCPort),
+			"--log-tx-time-to-finalized",
+			"--log-tx-time-to-executed",
+			"--log-tx-time-to-finalized-executed",
+			"--bootstrapdir=/bootstrap",
+			"--datadir=/data/protocol",
+			"--secretsdir=/data/secret",
+			"--loglevel=DEBUG",
+			fmt.Sprintf("--profiler-enabled=%t", true),
+			fmt.Sprintf("--tracer-enabled=%t", false),
+			"--profiler-dir=/profiler",
+			"--profiler-interval=2m",
+		},
+		Volumes: []string{
+			fmt.Sprintf("%s:/bootstrap:z", BootstrapDir),
+			fmt.Sprintf("%s:/profiler:z", profilerDir),
+			fmt.Sprintf("%s:/data:z", dataDir),
+		},
+		Environment: []string{
+			"JAEGER_AGENT_HOST=jaeger",
+			"JAEGER_AGENT_PORT=6831",
+			"BINSTAT_ENABLE",
+			"BINSTAT_LEN_WHAT",
+			"BINSTAT_DMP_NAME",
+			"BINSTAT_DMP_PATH",
+		},
+	}
+	// observer services reply on the access gateway
+	observerService.DependsOn = []string{
+		fmt.Sprintf(DefaultAccessGatewayName),
+	}
+	observerService.Ports = []string{
+		// Flow API ports come in pairs, open and secure. While the guest port is always
+		// the same from the guest's perspective, the host port numbering accounts for the presence
+		// of multiple pairs of listeners on the host to avoid port collisions. Observer listener pairs
+		// are numbered just after the Access listeners on the host network by previous convention
+		fmt.Sprintf("%d:%d", (accessCount*2)+FlowAPIPort+(2*i), RPCPort),
+		fmt.Sprintf("%d:%d", (accessCount*2)+FlowAPIPort+(2*i)+1, SecuredRPCPort),
+	}
+	return observerService
+}
+
+func prepareObserverServices(dockerServices Services, flowNodeContainerConfigs []testnet.ContainerConfig) Services {
+	agPublicKey, err := getAccessGatewayPublicKey(flowNodeContainerConfigs)
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < observerCount; i++ {
+		observerName := fmt.Sprintf("%s_%d", DefaultObserverName, i+1)
+		profilerDir := prepareObserverProfilerFolder(observerName)
+		dataDir := prepareObserverDataFolder(observerName)
+		observerService := prepareObserverService(i, observerName, agPublicKey, profilerDir, dataDir)
+
+		// Add a docker container for this named Observer
+		dockerServices[observerName] = observerService
+
+		// Generate observer private key (localnet only, not for production)
+		writeObserverPrivateKey(observerName)
+	}
+	fmt.Println("Observer services bootstrapping data generated...")
+	return dockerServices
 }
