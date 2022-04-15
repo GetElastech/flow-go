@@ -1247,7 +1247,7 @@ func loadRootProtocolSnapshot(dir string) (*inmem.Snapshot, error) {
 	var snapshot inmem.EncodableSnapshot
 	err = json.Unmarshal(data, &snapshot)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal data %v, err: %v", data, err)
 	}
 
 	return inmem.SnapshotFromEncodable(snapshot), nil

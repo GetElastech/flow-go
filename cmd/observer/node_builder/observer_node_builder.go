@@ -3,8 +3,9 @@ package observer
 import (
 	"context"
 	"fmt"
-	"github.com/onflow/flow-go/apiservice"
 	"strings"
+
+	"github.com/onflow/flow-go/apiservice"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/routing"
@@ -365,7 +366,7 @@ func (builder *ObserverNodeBuilder) initLibP2PFactory(networkKey crypto.PrivateK
 			SetBasicResolver(builder.Resolver).
 			SetSubscriptionFilter(
 				p2p.NewRoleBasedFilter(
-					flow.RoleAccess, builder.IdentityProvider,
+					flow.RoleObserverService, builder.IdentityProvider,
 				),
 			).
 			SetConnectionManager(connManager).

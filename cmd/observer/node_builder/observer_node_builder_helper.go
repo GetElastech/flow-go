@@ -3,8 +3,9 @@ package observer
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/onflow/flow-go/apiservice"
 	"time"
+
+	"github.com/onflow/flow-go/apiservice"
 
 	"github.com/onflow/flow/protobuf/go/flow/access"
 	"github.com/rs/zerolog"
@@ -396,7 +397,7 @@ func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 
 	return &FlowAccessNodeBuilder{
 		ObserverServiceConfig:   config,
-		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.BaseOptions...),
+		FlowNodeBuilder:         cmd.FlowNode(flow.RoleObserverService.String(), config.BaseOptions...),
 		FinalizationDistributor: pubsub.NewFinalizationDistributor(),
 	}
 }
@@ -538,7 +539,7 @@ func BootstrapIdentities(addresses []string, keys []string) (flow.IdentityList, 
 		ids[i] = &flow.Identity{
 			NodeID:        flow.ZeroID, // the NodeID is the hash of the staking key and for the observer service network it does not apply
 			Address:       address,
-			Role:          flow.RoleAccess, // the upstream node has to be an access node
+			Role:          flow.RoleObserverService, // the upstream node has to be an access node
 			NetworkPubKey: networkKey,
 		}
 	}
