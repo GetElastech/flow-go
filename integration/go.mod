@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/DataDog/zstd v1.4.8 // indirect
 	github.com/HdrHistogram/hdrhistogram-go v1.0.1 // indirect
+	github.com/aws/aws-sdk-go v1.34.28 // indirect
 	github.com/dapperlabs/testingdock v0.4.4
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.3
@@ -13,9 +14,12 @@ require (
 	github.com/docker/docker v1.4.2-0.20190513124817-8c8457b0f2f8
 	github.com/docker/go-connections v0.4.0
 	github.com/ethereum/go-ethereum v1.10.1 // indirect
-	github.com/go-openapi/strfmt v0.20.1 // indirect
 	github.com/go-test/deep v1.0.7 // indirect
+	github.com/gobuffalo/genny v0.1.1 // indirect
+	github.com/gobuffalo/gogen v0.1.1 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
+	github.com/karrick/godirwalk v1.10.3 // indirect
+	github.com/libp2p/go-libp2p-quic-transport v0.15.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/onflow/cadence v0.23.3
 	github.com/onflow/flow-core-contracts/lib/go/contracts v0.11.0

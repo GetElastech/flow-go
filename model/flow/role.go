@@ -82,15 +82,7 @@ func (r *Role) UnmarshalText(text []byte) error {
 }
 
 func Roles() RoleList {
-	return []Role{RoleCollection, RoleConsensus, RoleExecution, RoleVerification, RoleAccess, RoleObserverService}
-}
-
-func NodeAndServiceRoles() RoleList {
-	return []Role{RoleCollection, RoleConsensus, RoleExecution, RoleVerification, RoleAccess, RoleObserverService}
-}
-
-func ServiceRoles() RoleList {
-	return []Role{RoleObserverService}
+	return []Role{RoleCollection, RoleConsensus, RoleExecution, RoleVerification, RoleAccess}
 }
 
 func NodeAndServiceRoles() RoleList {
