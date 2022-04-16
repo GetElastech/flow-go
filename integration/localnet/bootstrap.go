@@ -163,10 +163,10 @@ func displayPortAssignments() {
 	for i := 0; i < executionCount; i++ {
 		fmt.Printf("Execution API %d will be accessible at localhost:%d\n", i+1, ExecutionAPIPort+i)
 	}
+	fmt.Println()
 	for i := 0; i < observerCount; i++ {
 		fmt.Printf("Observer %d Flow API will be accessible at localhost:%d\n", i+1, (accessCount*2)+(FlowAPIPort)+2*i)
 	}
-	fmt.Println()
 }
 
 func prepareCommonHostFolders() {
@@ -679,7 +679,7 @@ func prepareObserverService(i int, observerName string, agPublicKey string, prof
 		Image: fmt.Sprintf("localnet-%s", DefaultObserverName),
 		Command: []string{
 			fmt.Sprintf("--staked=false"),
-			fmt.Sprintf("--bootstrap-node-addresses=access_1:1234"),
+			fmt.Sprintf("--bootstrap-node-addresses=%s:%d", DefaultAccessGatewayName, AccessPubNetworkPort),
 			fmt.Sprintf("--bootstrap-node-public-keys=%s", agPublicKey),
 			fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName),
 			fmt.Sprintf("--bind=0.0.0.0:0"),
@@ -748,5 +748,6 @@ func prepareObserverServices(dockerServices Services, flowNodeContainerConfigs [
 		writeObserverPrivateKey(observerName)
 	}
 	fmt.Println("Observer services bootstrapping data generated...")
+	fmt.Printf("Access Gateway (%s) public network libp2p key: %s\n\n", DefaultAccessGatewayName, agPublicKey)
 	return dockerServices
 }
