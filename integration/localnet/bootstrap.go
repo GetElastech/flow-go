@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/docker/cli/cli/command/service"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -324,7 +323,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		panic(err)
 	}
 
-	baseService := Service{
+	service := Service{
 		Image: fmt.Sprintf("localnet-%s", container.Role),
 		Command: []string{
 			fmt.Sprintf("--nodeid=%s", container.NodeID),
@@ -355,7 +354,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		},
 	}
 
-	baseService.Command = append(service.Command, fmt.Sprintf("--admin-addr=:%v", AdminToolPort))
+	service.Command = append(service.Command, fmt.Sprintf("--admin-addr=:%v", AdminToolPort))
 
 	// only specify build config for first service of each role
 	if i == 0 {
@@ -383,7 +382,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 		}
 	}
 
-	return baseService
+	return service
 }
 
 // NOTE: accessNodeIDS is a comma separated list of access node IDS
