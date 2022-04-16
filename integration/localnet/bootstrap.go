@@ -747,6 +747,7 @@ func prepareObserverServices(dockerServices Services, flowNodeContainerConfigs [
 		// Generate observer private key (localnet only, not for production)
 		writeObserverPrivateKey(observerName)
 	}
+	fmt.Println()
 	fmt.Println("Observer services bootstrapping data generated...")
 	fmt.Printf("Access Gateway (%s) public network libp2p key: %s\n\n", DefaultAccessGatewayName, agPublicKey)
 	return dockerServices
