@@ -735,20 +735,22 @@ func prepareObserverServices(dockerServices Services, flowNodeContainerConfigs [
 		panic(err)
 	}
 
-	for i := 0; i < observerCount; i++ {
-		observerName := fmt.Sprintf("%s_%d", DefaultObserverName, i+1)
-		profilerDir := prepareObserverProfilerFolder(observerName)
-		dataDir := prepareObserverDataFolder(observerName)
-		observerService := prepareObserverService(i, observerName, agPublicKey, profilerDir, dataDir)
+	if observerCount > 0 {
+		for i := 0; i < observerCount; i++ {
+			observerName := fmt.Sprintf("%s_%d", DefaultObserverName, i+1)
+			profilerDir := prepareObserverProfilerFolder(observerName)
+			dataDir := prepareObserverDataFolder(observerName)
+			observerService := prepareObserverService(i, observerName, agPublicKey, profilerDir, dataDir)
 
-		// Add a docker container for this named Observer
-		dockerServices[observerName] = observerService
+			// Add a docker container for this named Observer
+			dockerServices[observerName] = observerService
 
-		// Generate observer private key (localnet only, not for production)
-		writeObserverPrivateKey(observerName)
+			// Generate observer private key (localnet only, not for production)
+			writeObserverPrivateKey(observerName)
+		}
+		fmt.Println()
+		fmt.Println("Observer services bootstrapping data generated...")
+		fmt.Printf("Access Gateway (%s) public network libp2p key: %s\n\n", DefaultAccessGatewayName, agPublicKey)
 	}
-	fmt.Println()
-	fmt.Println("Observer services bootstrapping data generated...")
-	fmt.Printf("Access Gateway (%s) public network libp2p key: %s\n\n", DefaultAccessGatewayName, agPublicKey)
 	return dockerServices
 }
