@@ -32,6 +32,7 @@ const (
 	PrometheusTargetsFile    = "./targets.nodes.json"
 	DefaultAccessGatewayName = "access_1"
 	DefaultObserverName      = "observer"
+	DefaultMaxObservers      = 1000
 	DefaultCollectionCount   = 3
 	DefaultConsensusCount    = 3
 	DefaultExecutionCount    = 1
@@ -733,6 +734,15 @@ func prepareObserverServices(dockerServices Services, flowNodeContainerConfigs [
 	agPublicKey, err := getAccessGatewayPublicKey(flowNodeContainerConfigs)
 	if err != nil {
 		panic(err)
+	}
+
+	if accessCount < 1 {
+		panic("Observers require at least one Access node to serve as an Access Gateway")
+	}
+
+	// Some reasonable maximum is needed to prevent conflicts with the Flow API ports
+	if observerCount > DefaultMaxObservers {
+		panic(fmt.Sprintf("No more than %d observers are permitted within localnet", DefaultMaxObservers))
 	}
 
 	if observerCount > 0 {
