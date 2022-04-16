@@ -2,6 +2,7 @@ package observer
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -153,7 +154,7 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 			for _, identity := range builder.bootstrapIdentities {
 				node.Logger.Info().
 					Str("observer_node", builder.rpcConf.UnsecureGRPCListenAddr).
-					Msg(fmt.Sprintf("proxying %s to %s ...", builder.rpcConf.UnsecureGRPCListenAddr, identity.Address))
+					Msg(fmt.Sprintf("proxying %s to %s with key %s ...", builder.rpcConf.UnsecureGRPCListenAddr, identity.Address, identity.NetworkPubKey))
 			}
 			proxy, err := apiservice.NewFlowAPIService(builder.bootstrapIdentities, builder.rpcConf.CollectionClientTimeout)
 			if err != nil {
@@ -162,6 +163,8 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 					Msg(fmt.Sprintf("proxying %s failed", builder.rpcConf.UnsecureGRPCListenAddr))
 				return err
 			}
+			node.Logger.Info().Msg(fmt.Sprintf("bootstrap access nodes %v", proxy))
+
 			if proxy == nil {
 				node.Logger.Info().Msg("cannot create flow proxy")
 				return nil
@@ -219,6 +222,7 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 			return nil
 		}).
 		Module("server certificate", func(node *cmd.NodeConfig) error {
+			node.Logger.Info().Msg(fmt.Sprintf("grpc public key %s", hex.EncodeToString(node.NetworkKey.PublicKey().Encode())))
 			// generate the server certificate that will be served by the GRPC server
 			x509Certificate, err := grpcutils.X509Certificate(node.NetworkKey)
 			if err != nil {
@@ -366,7 +370,7 @@ func (builder *ObserverNodeBuilder) initLibP2PFactory(networkKey crypto.PrivateK
 			SetBasicResolver(builder.Resolver).
 			SetSubscriptionFilter(
 				p2p.NewRoleBasedFilter(
-					flow.RoleObserverService, builder.IdentityProvider,
+					flow.RoleAccess, builder.IdentityProvider,
 				),
 			).
 			SetConnectionManager(connManager).

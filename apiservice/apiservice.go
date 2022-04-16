@@ -2,29 +2,49 @@ package apiservice
 
 import (
 	"context"
+	"time"
+
 	"github.com/onflow/flow-go/engine/access/rpc/backend"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/utils/grpcutils"
 	"github.com/onflow/flow/protobuf/go/flow/access"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
-	"time"
 )
 
 func NewFlowAPIService(accessNodeAddressAndPort flow.IdentityList, timeout time.Duration) (*FlowAPIService, error) {
 	accessClients := make([]access.AccessAPIClient, accessNodeAddressAndPort.Count())
 	for i, identity := range accessNodeAddressAndPort {
-		clientRPCConnection, err := grpc.Dial(
-			identity.Address,
-			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcutils.DefaultMaxMsgSize)),
-			grpc.WithInsecure(), //nolint:staticcheck
-			backend.WithClientUnaryInterceptor(timeout))
-		if err != nil {
-			return nil, err
-		}
+		if identity.NetworkPubKey == nil {
+			clientRPCConnection, err := grpc.Dial(
+				identity.Address,
+				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcutils.DefaultMaxMsgSize)),
+				grpc.WithInsecure(), //nolint:staticcheck
+				backend.WithClientUnaryInterceptor(timeout))
+			if err != nil {
+				return nil, err
+			}
 
-		accessClients[i] = access.NewAccessAPIClient(clientRPCConnection)
+			accessClients[i] = access.NewAccessAPIClient(clientRPCConnection)
+		} else {
+			tlsConfig, err := grpcutils.DefaultClientTLSConfig(identity.NetworkPubKey)
+			if err != nil {
+				return nil, err
+			}
+
+			clientRPCConnection, err := grpc.Dial(
+				identity.Address,
+				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcutils.DefaultMaxMsgSize)),
+				grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+				backend.WithClientUnaryInterceptor(timeout))
+			if err != nil {
+				return nil, err
+			}
+
+			accessClients[i] = access.NewAccessAPIClient(clientRPCConnection)
+		}
 	}
 
 	ret := &FlowAPIService{}

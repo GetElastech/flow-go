@@ -93,6 +93,14 @@ func ServiceRoles() RoleList {
 	return []Role{RoleObserverService}
 }
 
+func NodeAndServiceRoles() RoleList {
+	return []Role{RoleCollection, RoleConsensus, RoleExecution, RoleVerification, RoleAccess, RoleObserverService}
+}
+
+func ServiceRoles() RoleList {
+	return []Role{RoleObserverService}
+}
+
 // RoleList defines a slice of roles in flow system.
 type RoleList []Role
 

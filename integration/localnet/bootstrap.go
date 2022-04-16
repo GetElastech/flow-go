@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
 
 	"github.com/plus3it/gorecurcopy"
 	"gopkg.in/yaml.v2"
@@ -302,7 +303,7 @@ func prepareServices(containers []testnet.ContainerConfig) Services {
 				bootstrapAccessNodePublicKey = container.NetworkPubKey()
 				bootstrapAccessNodeAddress = strings.SplitN(container.Address, ":", 2)[0]
 				// TODO switch to secure access
-				bootstrapAccessNodeAddress = fmt.Sprintf("localnet_%s_1:%d", bootstrapAccessNodeAddress, RPCPort)
+				bootstrapAccessNodeAddress = fmt.Sprintf("localnet_%s_1:%d", bootstrapAccessNodeAddress, SecuredRPCPort)
 				bootstrapAccessNodeContainer = container.ContainerName
 			}
 			numAccess++

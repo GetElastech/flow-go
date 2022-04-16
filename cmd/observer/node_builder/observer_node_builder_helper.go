@@ -228,7 +228,7 @@ func (builder *FlowAccessNodeBuilder) buildFollowerState() *FlowAccessNodeBuilde
 
 func (builder *FlowAccessNodeBuilder) buildSyncCore() *FlowAccessNodeBuilder {
 	builder.Module("sync core", func(node *cmd.NodeConfig) error {
-		syncCore, err := synchronization.New(node.Logger, synchronization.DefaultConfig())
+		syncCore, err := synchronization.New(node.Logger, node.SyncCoreConfig)
 		builder.SyncCore = syncCore
 
 		return err
@@ -397,7 +397,7 @@ func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 
 	return &FlowAccessNodeBuilder{
 		ObserverServiceConfig:   config,
-		FlowNodeBuilder:         cmd.FlowNode(flow.RoleObserverService.String(), config.BaseOptions...),
+		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.BaseOptions...),
 		FinalizationDistributor: pubsub.NewFinalizationDistributor(),
 	}
 }
@@ -539,7 +539,7 @@ func BootstrapIdentities(addresses []string, keys []string) (flow.IdentityList, 
 		ids[i] = &flow.Identity{
 			NodeID:        flow.ZeroID, // the NodeID is the hash of the staking key and for the observer service network it does not apply
 			Address:       address,
-			Role:          flow.RoleObserverService, // the upstream node has to be an access node
+			Role:          flow.RoleAccess, // the upstream node has to be an access node
 			NetworkPubKey: networkKey,
 		}
 	}
