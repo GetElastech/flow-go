@@ -112,9 +112,9 @@ func DefaultObserverNodeConfig() *ObserverServiceConfig {
 		collectionGRPCPort: 9000,
 		executionGRPCPort:  9000,
 		rpcConf: rpc.Config{
-			UnsecureGRPCListenAddr:    "0.0.0.0:9000",
-			SecureGRPCListenAddr:      "0.0.0.0:9001",
-			HTTPListenAddr:            "0.0.0.0:8000",
+			UnsecureGRPCListenAddr:    "0.0.0.0:7100",
+			SecureGRPCListenAddr:      "0.0.0.0:7001",
+			HTTPListenAddr:            "0.0.0.0:6000",
 			RESTListenAddr:            "",
 			CollectionAddr:            "",
 			HistoricalAccessAddrs:     "",

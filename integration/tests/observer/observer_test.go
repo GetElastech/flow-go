@@ -2,7 +2,7 @@ package access
 
 import (
 	"context"
-	"fmt"
+//`	"fmt"
 	"testing"
 	"time"
 
@@ -53,7 +53,7 @@ func (suite *ObserverSuite) SetupTest() {
 	}()
 
 	nodeConfigs := []testnet.NodeConfig{
-		testnet.NewNodeConfig(flow.RoleObserverService, testnet.WithLogLevel(zerolog.InfoLevel)),
+		testnet.NewNodeConfig(flow.RoleObserverService, testnet.WithLogLevel(zerolog.DebugLevel), testnet.WithAdditionalFlag("--rpc-addr=7000")),
 	}
 
 	// need one access node
@@ -92,7 +92,8 @@ func (suite *ObserverSuite) SetupTest() {
 }
 
 func (suite *ObserverSuite) TestObserver() {
-	gRPCAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort])
+	//gRPCAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort])
+	gRPCAddress := ":7000" 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, gRPCAddress, grpc.WithInsecure())
