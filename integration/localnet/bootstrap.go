@@ -678,7 +678,6 @@ func prepareObserverService(i int, observerName string, agPublicKey string, prof
 	observerService := Service{
 		Image: fmt.Sprintf("localnet-%s", DefaultObserverName),
 		Command: []string{
-			fmt.Sprintf("--staked=false"),
 			fmt.Sprintf("--bootstrap-node-addresses=%s:%d", DefaultAccessGatewayContainer, AccessPubNetworkPort),
 			fmt.Sprintf("--bootstrap-node-public-keys=%s", agPublicKey),
 			fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName),
