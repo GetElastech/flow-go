@@ -2,8 +2,11 @@ package observer
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
+
+	"github.com/onflow/flow-go/apiservice"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/routing"
@@ -135,6 +138,41 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 			builder.CollectionRPC = access.NewAccessAPIClient(collectionRPCConn)
 			return nil
 		}).
+		Module("observer proxy", func(node *cmd.NodeConfig) error {
+			// collection node address is optional (if not specified, collection nodes will be chosen at random)
+			if len(builder.ObserverServiceConfig.bootstrapNodeAddresses) == 0 {
+				node.Logger.Info().Msg("using a dynamic collection node address")
+				return nil
+			}
+
+			err := builder.deriveBootstrapPeerIdentities()
+			if err != nil {
+				node.Logger.Info().Msg(fmt.Sprintf("cannot collect observer bootstrap peer identities %s", err.Error()))
+				return nil
+			}
+
+			for _, identity := range builder.bootstrapIdentities {
+				node.Logger.Info().
+					Str("observer_node", builder.rpcConf.UnsecureGRPCListenAddr).
+					Msg(fmt.Sprintf("proxying %s to %s with key %s ...", builder.rpcConf.UnsecureGRPCListenAddr, identity.Address, identity.NetworkPubKey))
+			}
+			proxy, err := apiservice.NewFlowAPIService(builder.bootstrapIdentities, builder.rpcConf.CollectionClientTimeout)
+			if err != nil {
+				node.Logger.Error().
+					Str("observer_node", err.Error()).
+					Msg(fmt.Sprintf("proxying %s failed", builder.rpcConf.UnsecureGRPCListenAddr))
+				return err
+			}
+			node.Logger.Info().Msg(fmt.Sprintf("bootstrap access nodes %v", proxy))
+
+			if proxy == nil {
+				node.Logger.Info().Msg("cannot create flow proxy")
+				return nil
+			}
+			builder.Proxy = proxy
+
+			return nil
+		}).
 		Module("historical access node clients", func(node *cmd.NodeConfig) error {
 			addrs := strings.Split(builder.rpcConf.HistoricalAccessAddrs, ",")
 			for _, addr := range addrs {
@@ -184,6 +222,7 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 			return nil
 		}).
 		Module("server certificate", func(node *cmd.NodeConfig) error {
+			node.Logger.Info().Msg(fmt.Sprintf("grpc public key %s", hex.EncodeToString(node.NetworkKey.PublicKey().Encode())))
 			// generate the server certificate that will be served by the GRPC server
 			x509Certificate, err := grpcutils.X509Certificate(node.NetworkKey)
 			if err != nil {
@@ -191,6 +230,14 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 			}
 			tlsConfig := grpcutils.DefaultServerTLSConfig(x509Certificate)
 			builder.rpcConf.TransportCredentials = credentials.NewTLS(tlsConfig)
+			return nil
+		}).
+		Module("public network", func(node *cmd.NodeConfig) error {
+			builder.enqueuePublicNetworkInit()
+			return nil
+		}).
+		Module("public network", func(node *cmd.NodeConfig) error {
+			builder.enqueueRelayNetwork()
 			return nil
 		}).
 		Component("RPC engine", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
@@ -214,6 +261,7 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 				builder.rpcMetricsEnabled,
 				builder.apiRatelimits,
 				builder.apiBurstlimits,
+				builder.Proxy,
 			)
 			return builder.RpcEng, nil
 		}).
