@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/onflow/cadence"
+
 	sdk "github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
 	"github.com/onflow/flow-go-sdk/crypto"
@@ -293,6 +294,9 @@ func (c *Client) TokenAmountByRole(role flow.Role) (string, float64, error) {
 		return "135000.0", 135000.0, nil
 	}
 	if role == flow.RoleAccess {
+		return "0.0", 0.0, nil
+	}
+	if role == flow.RoleObserverService {
 		return "0.0", 0.0, nil
 	}
 

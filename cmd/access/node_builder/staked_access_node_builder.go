@@ -2,6 +2,7 @@ package node_builder
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -71,7 +72,7 @@ func (builder *StakedAccessNodeBuilder) InitIDProviders() {
 			)
 		}
 
-		builder.IDTranslator = p2p.NewHierarchicalIDTranslator(idCache, p2p.NewUnstakedNetworkIDTranslator())
+		builder.IDTranslator = p2p.NewHierarchicalIDTranslator(idCache, p2p.NewPublicNetworkIDTranslator())
 
 		return nil
 	})
@@ -86,7 +87,7 @@ func (builder *StakedAccessNodeBuilder) Initialize() error {
 	builder.EnqueueNetworkInit()
 
 	// if this is an access node that supports unstaked followers, enqueue the unstaked network
-	if builder.supportsUnstakedFollower {
+	if builder.supportsObservers {
 		builder.enqueueUnstakedNetworkInit()
 		builder.enqueueRelayNetwork()
 	}
@@ -191,6 +192,7 @@ func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
 			return nil
 		}).
 		Module("server certificate", func(node *cmd.NodeConfig) error {
+			node.Logger.Info().Msg(fmt.Sprintf("grpc public key %s", hex.EncodeToString(node.NetworkKey.PublicKey().Encode())))
 			// generate the server certificate that will be served by the GRPC server
 			x509Certificate, err := grpcutils.X509Certificate(node.NetworkKey)
 			if err != nil {
@@ -221,6 +223,7 @@ func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
 				builder.rpcMetricsEnabled,
 				builder.apiRatelimits,
 				builder.apiBurstlimits,
+				nil,
 			)
 			return builder.RpcEng, nil
 		}).
@@ -258,7 +261,7 @@ func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
 			return builder.RequestEng, nil
 		})
 
-	if builder.supportsUnstakedFollower {
+	if builder.supportsObservers {
 		builder.Component("unstaked sync request handler", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 			syncRequestHandler, err := synceng.NewRequestHandlerEngine(
 				node.Logger.With().Bool("unstaked", true).Logger(),

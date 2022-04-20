@@ -68,22 +68,15 @@ import (
 
 type AccessNodeBuilder interface {
 	cmd.NodeBuilder
-
-	// IsStaked returns True if this is a staked Access Node, False otherwise
-	IsStaked() bool
 }
 
 // AccessNodeConfig defines all the user defined parameters required to bootstrap an access node
 // For a node running as a standalone process, the config fields will be populated from the command line params,
 // while for a node running as a library, the config fields are expected to be initialized by the caller.
 type AccessNodeConfig struct {
-	staked                       bool
-	bootstrapNodeAddresses       []string
-	bootstrapNodePublicKeys      []string
+	supportsObservers            bool
 	observerNetworkingKeyPath    string
-	bootstrapIdentities          flow.IdentityList // the identity list of bootstrap peers the node uses to discover other nodes
 	NetworkKey                   crypto.PrivateKey // the networking key passed in by the caller when being used as a library
-	supportsUnstakedFollower     bool              // True if this is a staked Access node which also supports unstaked access nodes/unstaked consensus follower engines
 	collectionGRPCPort           uint
 	executionGRPCPort            uint
 	pingEnabled                  bool
@@ -98,7 +91,7 @@ type AccessNodeConfig struct {
 	logTxTimeToFinalizedExecuted bool
 	retryEnabled                 bool
 	rpcMetricsEnabled            bool
-	baseOptions                  []cmd.Option
+	BaseOptions                  []cmd.Option
 
 	PublicNetworkConfig PublicNetworkConfig
 }
@@ -110,7 +103,7 @@ type PublicNetworkConfig struct {
 	Metrics     module.NetworkMetrics
 }
 
-// DefaultAccessNodeConfig defines all the default values for the AccessNodeConfig
+// DefaultSharedNodeConfig defines all the default values for the AccessNodeConfig
 func DefaultAccessNodeConfig() *AccessNodeConfig {
 	return &AccessNodeConfig{
 		collectionGRPCPort: 9000,
@@ -138,21 +131,21 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 		nodeInfoFile:                 "",
 		apiRatelimits:                nil,
 		apiBurstlimits:               nil,
-		staked:                       true,
-		bootstrapNodeAddresses:       []string{},
-		bootstrapNodePublicKeys:      []string{},
-		supportsUnstakedFollower:     false,
+		//bootstrapNodeAddresses:       []string{},
+		//bootstrapNodePublicKeys:      []string{},
+		supportsObservers: false,
 		PublicNetworkConfig: PublicNetworkConfig{
 			BindAddress: cmd.NotSet,
 			Metrics:     metrics.NewNoopCollector(),
 		},
-		observerNetworkingKeyPath: cmd.NotSet,
+		//observerNetworkingKeyPath: cmd.NotSet,
+		//staked: true,
 	}
 }
 
-// FlowAccessNodeBuilder provides the common functionality needed to bootstrap a Flow staked and unstaked access node
+// FlowAccessNodeBuilder provides the common functionality needed to bootstrap a Flow Access Node
 // It is composed of the FlowNodeBuilder, the AccessNodeConfig and contains all the components and modules needed for the
-// staked and unstaked access nodes
+// Access Nodes
 type FlowAccessNodeBuilder struct {
 	*cmd.FlowNodeBuilder
 	*AccessNodeConfig
@@ -185,25 +178,6 @@ type FlowAccessNodeBuilder struct {
 	RequestEng  *requester.Engine
 	FollowerEng *followereng.Engine
 	SyncEng     *synceng.Engine
-}
-
-// deriveBootstrapPeerIdentities derives the Flow Identity of the bootstrap peers from the parameters.
-// These are the identities of the staked and unstaked ANs also acting as the DHT bootstrap server
-func (builder *FlowAccessNodeBuilder) deriveBootstrapPeerIdentities() error {
-	// if bootstrap identities already provided (as part of alternate initialization as a library the skip reading command
-	// line params)
-	if builder.bootstrapIdentities != nil {
-		return nil
-	}
-
-	ids, err := BootstrapIdentities(builder.bootstrapNodeAddresses, builder.bootstrapNodePublicKeys)
-	if err != nil {
-		return fmt.Errorf("failed to derive bootstrap peer identities: %w", err)
-	}
-
-	builder.bootstrapIdentities = ids
-
-	return nil
 }
 
 func (builder *FlowAccessNodeBuilder) buildFollowerState() *FlowAccessNodeBuilder {
@@ -379,13 +353,12 @@ type Option func(*AccessNodeConfig)
 
 func WithBootStrapPeers(bootstrapNodes ...*flow.Identity) Option {
 	return func(config *AccessNodeConfig) {
-		config.bootstrapIdentities = bootstrapNodes
 	}
 }
 
 func SupportsUnstakedNode(enable bool) Option {
 	return func(config *AccessNodeConfig) {
-		config.supportsUnstakedFollower = enable
+		config.supportsObservers = enable
 	}
 }
 
@@ -397,7 +370,7 @@ func WithNetworkKey(key crypto.PrivateKey) Option {
 
 func WithBaseOptions(baseOptions []cmd.Option) Option {
 	return func(config *AccessNodeConfig) {
-		config.baseOptions = baseOptions
+		config.BaseOptions = baseOptions
 	}
 }
 
@@ -409,12 +382,9 @@ func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 
 	return &FlowAccessNodeBuilder{
 		AccessNodeConfig:        config,
-		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.baseOptions...),
+		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.BaseOptions...),
 		FinalizationDistributor: pubsub.NewFinalizationDistributor(),
 	}
-}
-func (builder *FlowAccessNodeBuilder) IsStaked() bool {
-	return builder.staked
 }
 
 func (builder *FlowAccessNodeBuilder) ParseFlags() error {
@@ -453,14 +423,11 @@ func (builder *FlowAccessNodeBuilder) extraFlags() {
 		flags.StringVarP(&builder.nodeInfoFile, "node-info-file", "", defaultConfig.nodeInfoFile, "full path to a json file which provides more details about nodes when reporting its reachability metrics")
 		flags.StringToIntVar(&builder.apiRatelimits, "api-rate-limits", defaultConfig.apiRatelimits, "per second rate limits for Access API methods e.g. Ping=300,GetTransaction=500 etc.")
 		flags.StringToIntVar(&builder.apiBurstlimits, "api-burst-limits", defaultConfig.apiBurstlimits, "burst limits for Access API methods e.g. Ping=100,GetTransaction=100 etc.")
-		flags.BoolVar(&builder.staked, "staked", defaultConfig.staked, "whether this node is a staked access node or not")
 		flags.StringVar(&builder.observerNetworkingKeyPath, "observer-networking-key-path", defaultConfig.observerNetworkingKeyPath, "path to the networking key for observer")
-		flags.StringSliceVar(&builder.bootstrapNodeAddresses, "bootstrap-node-addresses", defaultConfig.bootstrapNodeAddresses, "the network addresses of the bootstrap access node if this is an unstaked access node e.g. access-001.mainnet.flow.org:9653,access-002.mainnet.flow.org:9653")
-		flags.StringSliceVar(&builder.bootstrapNodePublicKeys, "bootstrap-node-public-keys", defaultConfig.bootstrapNodePublicKeys, "the networking public key of the bootstrap access node if this is an unstaked access node (in the same order as the bootstrap node addresses) e.g. \"d57a5e9c5.....\",\"44ded42d....\"")
-		flags.BoolVar(&builder.supportsUnstakedFollower, "supports-unstaked-node", defaultConfig.supportsUnstakedFollower, "true if this staked access node supports unstaked node")
+		flags.BoolVar(&builder.supportsObservers, "supports-unstaked-node", defaultConfig.supportsObservers, "true if this staked access node supports unstaked node")
 		flags.StringVar(&builder.PublicNetworkConfig.BindAddress, "public-network-address", defaultConfig.PublicNetworkConfig.BindAddress, "staked access node's public network bind address")
 	}).ValidateFlags(func() error {
-		if builder.supportsUnstakedFollower && (builder.PublicNetworkConfig.BindAddress == cmd.NotSet || builder.PublicNetworkConfig.BindAddress == "") {
+		if builder.supportsObservers && (builder.PublicNetworkConfig.BindAddress == cmd.NotSet || builder.PublicNetworkConfig.BindAddress == "") {
 			return errors.New("public-network-address must be set if supports-unstaked-node is true")
 		}
 

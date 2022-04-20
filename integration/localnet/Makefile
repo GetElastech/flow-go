@@ -35,10 +35,30 @@ init:
 		-consensus-delay=$(CONSENSUS_DELAY) \
 		-collection-delay=$(COLLECTION_DELAY)
 
+.PHONY: init-with-observer
+init-with-observer:
+	go run -tags relic \
+		-ldflags="-X 'github.com/onflow/flow-go/cmd/build.commit=${COMMIT}' \
+		-X  'github.com/onflow/flow-go/cmd/build.semver=${VERSION}'" \
+		bootstrap.go \
+		-collection=3 \
+		-consensus=3 \
+		-execution=2 \
+		-verification=1 \
+		-access=2 \
+		-observer=1 \
+		-nclusters=1 \
+		-epoch-length=$(EPOCHLEN) \
+		-epoch-staking-phase-length=$(STAKINGLEN) \
+		-epoch-dkg-phase-length=$(DKGLEN) \
+		-profiler=$(PROFILER) \
+		-consensus-delay=$(CONSENSUS_DELAY) \
+		-collection-delay=$(COLLECTION_DELAY)
+
 # Creates a light version of the localnet with just 1 instance for each node type
 .PHONY: init-light
 init-light:
-	$(MAKE) -e COLLECTION=1 CONSENSUS=1 EXECUTION=1 VERIFICATION=1 ACCESS=1 NCLUSTERS=1 init
+	$(MAKE) -e COLLECTION=1 CONSENSUS=1 EXECUTION=1 VERIFICATION=1 ACCESS=1 OBSERVER=1 NCLUSTERS=1 init
 
 # Creates a version of localnet configured with short epochs
 .PHONY: init-short-epochs
