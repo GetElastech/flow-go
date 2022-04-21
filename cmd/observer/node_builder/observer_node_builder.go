@@ -232,6 +232,14 @@ func (builder *ObserverNodeBuilder) Build() (cmd.Node, error) {
 			builder.rpcConf.TransportCredentials = credentials.NewTLS(tlsConfig)
 			return nil
 		}).
+		Module("public network", func(node *cmd.NodeConfig) error {
+			builder.enqueuePublicNetworkInit()
+			return nil
+		}).
+		Module("public network", func(node *cmd.NodeConfig) error {
+			builder.enqueueRelayNetwork()
+			return nil
+		}).
 		Component("RPC engine", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 			builder.RpcEng = rpc.New(
 				node.Logger,

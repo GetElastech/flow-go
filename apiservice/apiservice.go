@@ -4,14 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/onflow/flow-go/engine/access/rpc/backend"
-	"github.com/onflow/flow-go/model/flow"
-	"github.com/onflow/flow-go/utils/grpcutils"
 	"github.com/onflow/flow/protobuf/go/flow/access"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
+
+	"github.com/onflow/flow-go/engine/access/rpc/backend"
+	"github.com/onflow/flow-go/model/flow"
+	"github.com/onflow/flow-go/utils/grpcutils"
 )
 
 func NewFlowAPIService(accessNodeAddressAndPort flow.IdentityList, timeout time.Duration) (*FlowAPIService, error) {
@@ -59,7 +60,6 @@ type FlowAPIService struct {
 	roundRobin int
 	upstream   []access.AccessAPIClient
 	LocalCache access.AccessAPIServer
-	downstream *grpc.Server
 }
 
 func (h *FlowAPIService) Ping(context context.Context, req *access.PingRequest) (*access.PingResponse, error) {

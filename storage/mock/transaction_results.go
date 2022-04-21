@@ -3,8 +3,9 @@
 package mock
 
 import (
-	flow "github.com/onflow/flow-go/model/flow"
 	mock "github.com/stretchr/testify/mock"
+
+	flow "github.com/onflow/flow-go/model/flow"
 
 	storage "github.com/onflow/flow-go/storage"
 )
@@ -26,6 +27,29 @@ func (_m *TransactionResults) BatchStore(blockID flow.Identifier, transactionRes
 	}
 
 	return r0
+}
+
+// ByBlockID provides a mock function with given fields: id
+func (_m *TransactionResults) ByBlockID(id flow.Identifier) ([]flow.TransactionResult, error) {
+	ret := _m.Called(id)
+
+	var r0 []flow.TransactionResult
+	if rf, ok := ret.Get(0).(func(flow.Identifier) []flow.TransactionResult); ok {
+		r0 = rf(id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]flow.TransactionResult)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(flow.Identifier) error); ok {
+		r1 = rf(id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // ByBlockIDTransactionID provides a mock function with given fields: blockID, transactionID

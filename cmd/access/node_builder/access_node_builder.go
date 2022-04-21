@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/onflow/flow-go/crypto"
+	"github.com/onflow/flow-go/module/compliance"
 
 	"github.com/onflow/flow-go/cmd"
 	"github.com/onflow/flow-go/consensus"
@@ -76,7 +77,6 @@ type AccessNodeConfig struct {
 	supportsObservers            bool
 	observerNetworkingKeyPath    string
 	NetworkKey                   crypto.PrivateKey // the networking key passed in by the caller when being used as a library
-	supportsUnstakedFollower     bool              // True if this is a staked Access node which also supports unstaked access nodes/unstaked consensus follower engines
 	collectionGRPCPort           uint
 	executionGRPCPort            uint
 	pingEnabled                  bool
@@ -284,6 +284,7 @@ func (builder *FlowAccessNodeBuilder) buildFollowerEngine() *FlowAccessNodeBuild
 			builder.FollowerCore,
 			builder.SyncCore,
 			node.Tracer,
+			compliance.WithSkipNewProposalsThreshold(builder.ComplianceConfig.SkipNewProposalsThreshold),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("could not create follower engine: %w", err)
