@@ -2,6 +2,7 @@ package apiservice
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/onflow/flow/protobuf/go/flow/access"
@@ -19,6 +20,7 @@ func NewFlowAPIService(accessNodeAddressAndPort flow.IdentityList, timeout time.
 	accessClients := make([]access.AccessAPIClient, accessNodeAddressAndPort.Count())
 	for i, identity := range accessNodeAddressAndPort {
 		if identity.NetworkPubKey == nil {
+			fmt.Printf("#### access node address: %v\n", identity.Address)
 			clientRPCConnection, err := grpc.Dial(
 				identity.Address,
 				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcutils.DefaultMaxMsgSize)),
