@@ -12,11 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
-	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
-
 	"github.com/plus3it/gorecurcopy"
+	"gopkg.in/yaml.v2"
 
 	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
 	"github.com/onflow/flow-go/cmd/bootstrap/utils"
