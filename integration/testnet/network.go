@@ -859,7 +859,7 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 			nodeContainer.AddFlag("execution-data-dir", DefaultExecutionDataServiceDir)
 
 		case flow.RoleAccess:
-			hostGRPCPort := testingdock.RandomPort(t)
+			hostGRPCPort := "36305"
 			hostHTTPProxyPort := testingdock.RandomPort(t)
 			hostSecureGRPCPort := testingdock.RandomPort(t)
 			containerGRPCPort := "9000/tcp"
@@ -906,6 +906,7 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 			nodeContainer.bindPort(hostHTTPProxyPort, containerHTTPProxyPort)
 			nodeContainer.bindPort(hostSecureGRPCPort, containerSecureGRPCPort)
 			nodeContainer.AddFlag("rpc-addr", fmt.Sprintf("%s:9000", nodeContainer.Name()))
+			nodeContainer.AddFlag("bootstrap-node-addresses", fmt.Sprintf("localhost:%s", "36305"))
 			nodeContainer.AddFlag("http-addr", fmt.Sprintf("%s:8000", nodeContainer.Name()))
 			// uncomment line below to point the access node exclusively to a single collection node
 			// nodeContainer.AddFlag("static-collection-ingress-addr", "collection_1:9000")
