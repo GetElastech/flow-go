@@ -1,4 +1,4 @@
-package node_builder
+package follower
 
 import (
 	"context"
@@ -152,7 +152,6 @@ func (builder *UnstakedAccessNodeBuilder) Initialize() error {
 
 func (builder *UnstakedAccessNodeBuilder) validateParams() error {
 	if builder.BaseConfig.BindAddr == cmd.NotSet || builder.BaseConfig.BindAddr == "" {
-		builder.BaseConfig.BindAddr = ":9003"
 		return errors.New("bind address not specified")
 	}
 	if builder.AccessNodeConfig.NetworkKey == nil && builder.AccessNodeConfig.observerNetworkingKeyPath == cmd.NotSet {
@@ -312,7 +311,7 @@ func (builder *UnstakedAccessNodeBuilder) enqueueUnstakedNetworkInit() {
 // of an explicit connect to the staked AN before the node attempts to subscribe to topics.
 func (builder *UnstakedAccessNodeBuilder) enqueueConnectWithStakedAN() {
 	builder.Component("upstream connector", func(_ *cmd.NodeConfig) (module.ReadyDoneAware, error) {
-		return newUpstreamConnector(builder.bootstrapIdentities, builder.LibP2PNode, builder.Logger), nil
+		return NewUpstreamConnector(builder.bootstrapIdentities, builder.LibP2PNode, builder.Logger), nil
 	})
 }
 
