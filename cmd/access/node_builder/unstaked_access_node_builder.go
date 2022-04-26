@@ -41,6 +41,7 @@ func NewUnstakedAccessNodeBuilder(builder *FlowAccessNodeBuilder) *UnstakedAcces
 	// the unstaked access node gets a version of the root snapshot file that does not contain any node addresses
 	// hence skip all the root snapshot validations that involved an identity address
 	builder.SkipNwAddressBasedValidations = true
+	builder.staked = false
 	return &UnstakedAccessNodeBuilder{
 		FlowAccessNodeBuilder: builder,
 	}
@@ -152,7 +153,7 @@ func (builder *UnstakedAccessNodeBuilder) Initialize() error {
 
 func (builder *UnstakedAccessNodeBuilder) validateParams() error {
 	if builder.BaseConfig.BindAddr == cmd.NotSet || builder.BaseConfig.BindAddr == "" {
-		return errors.New("bind address not specified")
+		builder.BaseConfig.BindAddr = ":9003"
 	}
 	if builder.AccessNodeConfig.NetworkKey == nil && builder.AccessNodeConfig.observerNetworkingKeyPath == cmd.NotSet {
 		return errors.New("networking key not provided")
