@@ -383,6 +383,12 @@ func WithBootStrapPeers(bootstrapNodes ...*flow.Identity) Option {
 	}
 }
 
+func UnstakedService() Option {
+	return func(config *AccessNodeConfig) {
+		config.staked = false
+	}
+}
+
 func SupportsUnstakedNode(enable bool) Option {
 	return func(config *AccessNodeConfig) {
 		config.supportsUnstakedFollower = enable
@@ -413,6 +419,7 @@ func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 		FinalizationDistributor: pubsub.NewFinalizationDistributor(),
 	}
 }
+
 func (builder *FlowAccessNodeBuilder) IsStaked() bool {
 	return builder.staked
 }
