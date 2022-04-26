@@ -35,8 +35,8 @@ type ObserverSuite struct {
 
 func (s *ObserverSuite) TearDownTest() {
 	s.log.Info().Msg("================> Start TearDownTest")
-	//s.net.Remove()
-	//s.cancel()
+	s.net.Remove()
+	s.cancel()
 	s.log.Info().Msg("================> Finish TearDownTest")
 }
 
