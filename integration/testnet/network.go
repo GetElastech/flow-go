@@ -908,7 +908,6 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 			nodeContainer.bindPort(hostSecureGRPCPort, containerSecureGRPCPort)
 			nodeContainer.AddFlag("rpc-addr", fmt.Sprintf("%s:9000", nodeContainer.Name()))
 			nodeContainer.AddFlag("bootstrap-node-addresses", fmt.Sprintf("localhost:%s", "36305"))
-			nodeContainer.AddFlag("public-network-address", fmt.Sprintf("localhost:%s", "36305"))
 			nodeContainer.AddFlag("http-addr", fmt.Sprintf("%s:8000", nodeContainer.Name()))
 			// uncomment line below to point the access node exclusively to a single collection node
 			// nodeContainer.AddFlag("static-collection-ingress-addr", "collection_1:9000")
@@ -919,6 +918,14 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 			nodeContainer.Ports[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
 			net.ObserverPorts[ObserverServiceAPIPort] = hostGRPCPort
 			net.ObserverPorts[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
+			if nodeConf.SupportsObserverNodes {
+				hostExternalNetworkPort := testingdock.RandomPort(t)
+				containerExternalNetworkPort := fmt.Sprintf("%d/tcp", AccessNodePublicNetworkPort)
+				nodeContainer.bindPort(hostExternalNetworkPort, containerExternalNetworkPort)
+				net.AccessPorts[AccessNodeExternalNetworkPort] = hostExternalNetworkPort
+				nodeContainer.AddFlag("supports-unstaked-node", "true")
+				nodeContainer.AddFlag("public-network-address", fmt.Sprintf("%s:%d", nodeContainer.Name(), AccessNodePublicNetworkPort))
+			}
 
 		case flow.RoleConsensus:
 			// use 1 here instead of the default 5, because the integration
