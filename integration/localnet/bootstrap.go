@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
+        "strings"
 	"time"
 
-	"github.com/go-yaml/yaml"
 	"github.com/plus3it/gorecurcopy"
 
 	"github.com/onflow/flow-go/cmd/bootstrap/cmd"
@@ -24,35 +25,38 @@ import (
 )
 
 const (
-	BootstrapDir             = "./bootstrap"
-	ProfilerDir              = "./profiler"
-	DataDir                  = "./data"
-	TrieDir                  = "./trie"
-	DockerComposeFile        = "./docker-compose.nodes.yml"
-	DockerComposeFileVersion = "3.7"
-	PrometheusTargetsFile    = "./targets.nodes.json"
-	DefaultAccessGatewayName = "access_1"
-	DefaultObserverName      = "observer"
-	DefaultMaxObservers      = 1000
-	DefaultCollectionCount   = 3
-	DefaultConsensusCount    = 3
-	DefaultExecutionCount    = 1
-	DefaultVerificationCount = 1
-	DefaultAccessCount       = 1
-	DefaultObserverCount     = 0
-	DefaultNClusters         = 1
-	DefaultProfiler          = false
-	DefaultConsensusDelay    = 800 * time.Millisecond
-	DefaultCollectionDelay   = 950 * time.Millisecond
-	AccessAPIPort            = 3569
-	AccessPubNetworkPort     = 1234
-	ExecutionAPIPort         = 3600
-	MetricsPort              = 8080
-	RPCPort                  = 9000
-	SecuredRPCPort           = 9001
-	AdminToolPort            = 9002
-	AdminToolLocalPort       = 3700
-	HTTPPort                 = 8000
+	BootstrapDir                  = "./bootstrap"
+	ProfilerDir                   = "./profiler"
+	DataDir                       = "./data"
+	TrieDir                       = "./trie"
+	DockerComposeFile             = "./docker-compose.nodes.yml"
+	DockerComposeFileVersion      = "3.7"
+	PrometheusTargetsFile         = "./targets.nodes.json"
+	DefaultAccessGatewayName      = "access_1"
+	DefaultAccessGatewayContainer = "localnet_access_1"
+	DefaultObserverName           = "observer"
+	DefaultMaxObservers           = 1000
+	DefaultCollectionCount        = 3
+	DefaultConsensusCount         = 3
+	DefaultExecutionCount         = 1
+	DefaultVerificationCount      = 1
+	DefaultAccessCount            = 1
+	DefaultObserverCount          = 0
+	DefaultNClusters              = 1
+	DefaultProfiler               = false
+	DefaultConsensusDelay         = 800 * time.Millisecond
+	DefaultCollectionDelay        = 950 * time.Millisecond
+	AccessAPIPort                 = 3569
+	AccessPubNetworkPort          = 3800
+        ObserverAPIPort               = 3810
+        ObserverP2PPort               = 9003
+	ExecutionAPIPort              = 3600
+	MetricsPort                   = 8080
+	RPCPort                       = 9000
+	SecuredRPCPort                = 9001
+	AdminToolPort                 = 9002
+	AdminToolLocalPort            = 3700
+	HTTPPort                      = 8000
 )
 
 var (
@@ -166,7 +170,7 @@ func displayPortAssignments() {
 	}
 	fmt.Println()
 	for i := 0; i < observerCount; i++ {
-		fmt.Printf("Observer %d Flow API will be accessible at localhost:%d\n", i+1, (accessCount*2)+(AccessAPIPort)+2*i)
+		fmt.Printf("Observer %d Flow API will be accessible at localhost:%d\n", i+1, (ObserverAPIPort)+i)
 	}
 }
 
@@ -221,6 +225,7 @@ func prepareFlowNodes() []testnet.NodeConfig {
 	fmt.Printf("- Execution: %d\n", executionCount)
 	fmt.Printf("- Verification: %d\n", verificationCount)
 	fmt.Printf("- Access: %d\n", accessCount)
+	fmt.Printf("- Observer: %d\n", observerCount)
 	nodes := make([]testnet.NodeConfig, 0)
 
 	for i := 0; i < collectionCount; i++ {
@@ -238,7 +243,11 @@ func prepareFlowNodes() []testnet.NodeConfig {
 	for i := 0; i < accessCount; i++ {
 		nodes = append(nodes, testnet.NewNodeConfig(flow.RoleAccess))
 	}
-
+	for i := 0; i < observerCount; i++ {
+                observer := testnet.NewNodeConfig(flow.RoleAccess)
+		observer.Weight = 1
+		nodes = append(nodes, observer)
+	}
 	return nodes
 }
 
@@ -260,6 +269,7 @@ type Service struct {
 	Environment []string `yaml:"environment,omitempty"`
 	Volumes     []string
 	Ports       []string `yaml:"ports,omitempty"`
+	Links       []string `yaml:"links,omitempty"`
 }
 
 // Build ...
@@ -277,6 +287,7 @@ func prepareFlowServices(services Services, containers []testnet.ContainerConfig
 		numExecution    = 0
 		numVerification = 0
 		numAccess       = 0
+		numObserver     = 0
 	)
 	for n, container := range containers {
 		switch container.Role {
@@ -303,6 +314,10 @@ func prepareFlowServices(services Services, containers []testnet.ContainerConfig
 		case flow.RoleAccess:
 			services[container.ContainerName] = prepareAccessService(container, numAccess, n)
 			numAccess++
+		case flow.RoleObserverService:
+			services[container.ContainerName] = prepareAccessService(container, numObserver, n)
+			fmt.Printf("Observer Gateway: %v", services[container.ContainerName])
+			numObserver++
 		}
 	}
 	return services
@@ -673,11 +688,12 @@ func writeObserverPrivateKey(observerName string) {
 }
 
 func prepareObserverService(i int, observerName string, agPublicKey string, profilerDir string, dataDir string) Service {
+	publicEndpointNodeID, _ := flow.HexStringToIdentifier(agPublicKey[0:64])
 	observerService := Service{
 		Image: fmt.Sprintf("localnet-%s", DefaultObserverName),
 		Command: []string{
-			fmt.Sprintf("--staked=false"),
-			fmt.Sprintf("--bootstrap-node-addresses=%s:%d", DefaultAccessGatewayName, AccessPubNetworkPort),
+			fmt.Sprintf("--nodeid=%s", publicEndpointNodeID), // this can be removed later
+			fmt.Sprintf("--bootstrap-node-addresses=%s:%d", DefaultAccessGatewayContainer, AccessPubNetworkPort),
 			fmt.Sprintf("--bootstrap-node-public-keys=%s", agPublicKey),
 			fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName),
 			fmt.Sprintf("--bind=0.0.0.0:0"),
@@ -717,7 +733,7 @@ func prepareObserverService(i int, observerName string, agPublicKey string, prof
 			Context:    "../../",
 			Dockerfile: "cmd/Dockerfile",
 			Args: map[string]string{
-				"TARGET":  "access", // hardcoded to access for now until we make it a separate cmd
+				"TARGET":  "observer",
 				"VERSION": build.Semver(),
 				"COMMIT":  build.Commit(),
 				"GOARCH":  runtime.GOARCH,
@@ -730,15 +746,72 @@ func prepareObserverService(i int, observerName string, agPublicKey string, prof
 	}
 	// observer services rely on the access gateway
 	observerService.DependsOn = append(observerService.DependsOn, DefaultAccessGatewayName)
+	observerService.Links = []string{DefaultAccessGatewayName}
 	observerService.Ports = []string{
 		// Flow API ports come in pairs, open and secure. While the guest port is always
 		// the same from the guest's perspective, the host port numbering accounts for the presence
 		// of multiple pairs of listeners on the host to avoid port collisions. Observer listener pairs
 		// are numbered just after the Access listeners on the host network by prior convention
-		fmt.Sprintf("%d:%d", (accessCount*2)+AccessAPIPort+(2*i), RPCPort),
-		fmt.Sprintf("%d:%d", (accessCount*2)+AccessAPIPort+(2*i)+1, SecuredRPCPort),
+		fmt.Sprintf("%d:%d", ObserverAPIPort+(2*i), RPCPort),
+		fmt.Sprintf("%d:%d", ObserverAPIPort+(2*i)+1, SecuredRPCPort),
 	}
+	fmt.Printf("Access Gateway (%s) public network libp2p key: %s\n\n", DefaultAccessGatewayName, agPublicKey)
 	return observerService
+}
+
+func withObserverFeature(service Service, i int, observerName string, agPublicKey string) Service {
+	// Generate the key in production: go run -tags relic ./cmd/bootstrap observer-network-key -f /tmp/network-key
+	observerNetworkKeyPath := "./observer-network-key"
+	dockerObserverNetworkKeyPath := fmt.Sprintf("/bootstrap/private-root-information/observer_%d_networking_key", i)
+	_ = os.Remove(observerNetworkKeyPath)
+	cmd.ObserverNetworkKeyWrite(observerNetworkKeyPath)
+	service.Volumes = append(service.Volumes, fmt.Sprintf("%s:%s:z", observerNetworkKeyPath, dockerObserverNetworkKeyPath))
+
+	// hex encode and write to file
+	bootstrapAddresses := fmt.Sprintf("%s:%d", DefaultAccessGatewayContainer, AccessPubNetworkPort) // TODO SecuredRPCPort?
+	bootstrapPublicKeys := fmt.Sprintf("%v", agPublicKey)
+
+	service.Image = fmt.Sprintf("localnet-observer")
+        service.Build = Build {
+                Context:    "../../",
+                Dockerfile: "cmd/Dockerfile",
+                Args: map[string]string{
+                        "TARGET":  "observer",
+                        "VERSION": build.Semver(),
+                        "COMMIT":  build.Commit(),
+                        "GOARCH":  runtime.GOARCH,
+                },
+                Target: "production",
+        }
+	//publicEndpointNodeID, _ := flow.HexStringToIdentifier(agPublicKey[0:64])
+	fmt.Printf("command: %v", service.Command)
+	commands := make([]string, 0)
+	for _, command := range service.Command {
+		if !strings.HasPrefix(command, "--supports-unstaked-node") {
+			commands = append(commands, command)
+		}
+	}
+	service.Command = append(commands, []string{
+		//fmt.Sprintf("--nodeid=%s", publicEndpointNodeID), // this can be removed later
+		//fmt.Sprintf("--rpc-addr=%s:%d", observerName, RPCPort),
+		//fmt.Sprintf("--secure-rpc-addr=%s:%d", observerName, SecuredRPCPort),
+		fmt.Sprintf("--http-addr=%s:%d", observerName, HTTPPort),
+		fmt.Sprintf("--collection-ingress-port=%d", RPCPort),
+		"--log-tx-time-to-finalized",
+		"--log-tx-time-to-executed",
+		"--log-tx-time-to-finalized-executed",
+		fmt.Sprintf("--observer-networking-key-path=%s", dockerObserverNetworkKeyPath),
+		fmt.Sprintf("--bootstrap-node-addresses=%s", bootstrapAddresses),
+		fmt.Sprintf("--bootstrap-node-public-keys=%s", bootstrapPublicKeys),
+		fmt.Sprintf("--public-network-address=%s:%d", "127.0.0.1", ObserverP2PPort+i),
+	}...)
+
+	service.Links = []string{DefaultAccessGatewayName}
+
+	service.Ports = append(service.Ports,
+		fmt.Sprintf("%d:%d", ObserverAPIPort+i, ObserverP2PPort+i))
+
+	return service
 }
 
 func prepareObserverServices(dockerServices Services, flowNodeContainerConfigs []testnet.ContainerConfig) Services {
@@ -759,22 +832,27 @@ func prepareObserverServices(dockerServices Services, flowNodeContainerConfigs [
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Access Gateway (%s) public network libp2p key: %s\n\n", DefaultAccessGatewayName, agPublicKey)
 
 	for i := 0; i < observerCount; i++ {
-		observerName := fmt.Sprintf("%s_%d", DefaultObserverName, i+1)
-		profilerDir := prepareObserverProfilerFolder(observerName)
-		dataDir := prepareObserverDataFolder(observerName)
-		observerService := prepareObserverService(i, observerName, agPublicKey, profilerDir, dataDir)
+		observerName := fmt.Sprintf("observer_%d", i + 1)
+                accessName := fmt.Sprintf("access_%d", accessCount + i + 1)
+		fmt.Printf("Observer %s on %s \n", observerName, accessName)
+ 		fmt.Printf("Svc: %v\n", dockerServices[observerName])
+		//profilerDir := prepareObserverProfilerFolder(observerName)
+		//dataDir := prepareObserverDataFolder(observerName)
+		//observerService := prepareObserverService(i, accessName, agPublicKey, profilerDir, dataDir)
 
 		// Add a docker container for this named Observer
-		dockerServices[observerName] = observerService
+		observerService := withObserverFeature(dockerServices[accessName], i, observerName, agPublicKey)
+		delete(dockerServices, accessName)
+		dockerServices[accessName] = observerService
 
 		// Generate observer private key (localnet only, not for production)
 		writeObserverPrivateKey(observerName)
 	}
 	fmt.Println()
 	fmt.Println("Observer services bootstrapping data generated...")
-	fmt.Printf("Access Gateway (%s) public network libp2p key: %s\n\n", DefaultAccessGatewayName, agPublicKey)
 
 	return dockerServices
 }
