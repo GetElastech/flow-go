@@ -1176,7 +1176,7 @@ func BootstrapNetwork(networkConf NetworkConfig, bootstrapDir string) (*flow.Blo
 	for i, _ := range participants {
 		if participants[i].Role == flow.RoleObserverService {
 			// It is simulated now by legacy logic
-			participants[i].Role = flow.RoleAccess
+			// participants[i].Role = flow.RoleAccess
 		}
 	}
 	// generate the initial execution state
