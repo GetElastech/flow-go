@@ -60,7 +60,6 @@ func (suite *ObserverSuite) SetupTest() {
 	observerConfig := testnet.NewNodeConfig(
 		flow.RoleObserverService,
 		testnet.WithLogLevel(zerolog.InfoLevel),
-		testnet.WithAdditionalFlag(fmt.Sprintf("--bootstrap-node-addresses=localhost:%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort])),
 	)
 	nodeConfigs = append(nodeConfigs, observerConfig)
 
