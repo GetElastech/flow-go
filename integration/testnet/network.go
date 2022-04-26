@@ -897,7 +897,7 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 			// net.MetricsPortsByContainerName[nodeContainer.Name()] = hostMetricsPort
 
 		case flow.RoleObserverService:
-			hostGRPCPort := testingdock.RandomPort(t)
+			hostGRPCPort := "35305"
 			hostHTTPProxyPort := testingdock.RandomPort(t)
 			hostSecureGRPCPort := testingdock.RandomPort(t)
 			containerGRPCPort := "9000/tcp"
