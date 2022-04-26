@@ -918,14 +918,14 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 			nodeContainer.Ports[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
 			net.ObserverPorts[ObserverServiceAPIPort] = hostGRPCPort
 			net.ObserverPorts[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
-			if nodeConf.SupportsObserverNodes {
-				hostExternalNetworkPort := testingdock.RandomPort(t)
-				containerExternalNetworkPort := fmt.Sprintf("%d/tcp", AccessNodePublicNetworkPort)
-				nodeContainer.bindPort(hostExternalNetworkPort, containerExternalNetworkPort)
-				net.AccessPorts[AccessNodeExternalNetworkPort] = hostExternalNetworkPort
-				nodeContainer.AddFlag("supports-unstaked-node", "true")
-				nodeContainer.AddFlag("public-network-address", fmt.Sprintf("%s:%d", nodeContainer.Name(), AccessNodePublicNetworkPort))
-			}
+			// if nodeConf.SupportsObserverNodes {
+			hostExternalNetworkPort := testingdock.RandomPort(t)
+			containerExternalNetworkPort := fmt.Sprintf("%d/tcp", AccessNodePublicNetworkPort)
+			nodeContainer.bindPort(hostExternalNetworkPort, containerExternalNetworkPort)
+			net.AccessPorts[AccessNodeExternalNetworkPort] = hostExternalNetworkPort
+			nodeContainer.AddFlag("supports-unstaked-node", "true")
+			nodeContainer.AddFlag("public-network-address", fmt.Sprintf("%s:%d", nodeContainer.Name(), AccessNodePublicNetworkPort))
+			// }
 
 		case flow.RoleConsensus:
 			// use 1 here instead of the default 5, because the integration
@@ -1176,7 +1176,7 @@ func BootstrapNetwork(networkConf NetworkConfig, bootstrapDir string) (*flow.Blo
 	for i, _ := range participants {
 		if participants[i].Role == flow.RoleObserverService {
 			// It is simulated now by legacy logic
-			// participants[i].Role = flow.RoleAccess
+			participants[i].Role = flow.RoleAccess
 		}
 	}
 	// generate the initial execution state
