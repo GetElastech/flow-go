@@ -82,6 +82,13 @@ const (
 	// GhostNodeAPIPort is the name used for the access node API port.
 	GhostNodeAPIPort = "ghost-api-port"
 
+	// ObserverServiceAPIPort is the name used for the observer node API port.
+	ObserverServiceAPIPort = "observer-api-port"
+	// ObserverServiceAPISecurePort is the name used for the secure observer API port.
+	ObserverServiceAPISecurePort = "observer-api-secure-port"
+	// ObserverServiceAPIProxyPort is the name used for the observer node API HTTP proxy port.
+	ObserverServiceAPIProxyPort = "observer-api-http-proxy-port"
+
 	// ExeNodeMetricsPort is the name used for the execution node metrics server port
 	ExeNodeMetricsPort = "exe-metrics-port"
 
@@ -134,6 +141,7 @@ type FlowNetwork struct {
 	Containers                  map[string]*Container
 	ConsensusFollowers          map[flow.Identifier]consensus_follower.ConsensusFollower
 	AccessPorts                 map[string]string
+	ObserverPorts               map[string]string
 	AccessPortsByContainerName  map[string]string
 	MetricsPortsByContainerName map[string]string
 	root                        *flow.Block
@@ -850,7 +858,7 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 
 			nodeContainer.AddFlag("execution-data-dir", DefaultExecutionDataServiceDir)
 
-		case flow.RoleAccess, flow.RoleObserverService:
+		case flow.RoleAccess:
 			hostGRPCPort := testingdock.RandomPort(t)
 			hostHTTPProxyPort := testingdock.RandomPort(t)
 			hostSecureGRPCPort := testingdock.RandomPort(t)
@@ -886,6 +894,29 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 			// nodeContainer.Ports[AccessNodeMetricsPort] = hostMetricsPort
 			// net.AccessPorts[AccessNodeMetricsPort] = hostMetricsPort
 			// net.MetricsPortsByContainerName[nodeContainer.Name()] = hostMetricsPort
+
+		case flow.RoleObserverService:
+			hostGRPCPort := testingdock.RandomPort(t)
+			hostHTTPProxyPort := testingdock.RandomPort(t)
+			hostSecureGRPCPort := testingdock.RandomPort(t)
+			containerGRPCPort := "9000/tcp"
+			containerSecureGRPCPort := "9001/tcp"
+			containerHTTPProxyPort := "8000/tcp"
+			nodeContainer.bindPort(hostGRPCPort, containerGRPCPort)
+			nodeContainer.bindPort(hostHTTPProxyPort, containerHTTPProxyPort)
+			nodeContainer.bindPort(hostSecureGRPCPort, containerSecureGRPCPort)
+			nodeContainer.AddFlag("rpc-addr", fmt.Sprintf("%s:9000", nodeContainer.Name()))
+			nodeContainer.AddFlag("http-addr", fmt.Sprintf("%s:8000", nodeContainer.Name()))
+			// uncomment line below to point the access node exclusively to a single collection node
+			// nodeContainer.AddFlag("static-collection-ingress-addr", "collection_1:9000")
+			nodeContainer.AddFlag("collection-ingress-port", "9000")
+			net.AccessPorts[ObserverServiceAPISecurePort] = hostSecureGRPCPort
+			nodeContainer.opts.HealthCheck = testingdock.HealthCheckCustom(healthcheckAccessGRPC(hostGRPCPort))
+			nodeContainer.Ports[ObserverServiceAPIPort] = hostGRPCPort
+			nodeContainer.Ports[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
+			net.AccessPorts[ObserverServiceAPIPort] = hostGRPCPort
+			net.AccessPortsByContainerName[nodeContainer.Name()] = hostGRPCPort
+			net.AccessPorts[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
 
 		case flow.RoleConsensus:
 			// use 1 here instead of the default 5, because the integration

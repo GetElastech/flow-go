@@ -2,7 +2,7 @@ package access
 
 import (
 	"context"
-//	"fmt"
+	"fmt"
 	"testing"
 	"time"
 
@@ -54,15 +54,11 @@ func (suite *ObserverSuite) SetupTest() {
 
 	nodeConfigs := []testnet.NodeConfig{
 		testnet.NewNodeConfig(flow.RoleObserverService, testnet.WithLogLevel(zerolog.InfoLevel), 
-//testnet.WithAdditionalFlag("--public-network-address=localhost:3469"), 
-//testnet.WithAdditionalFlag("--bootstrap-node-addresses=localhost:3569")),
+		testnet.WithAdditionalFlag(fmt.Sprintf("--bootstrap-node-addresses=localhost:%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort)),
 	}
 
 	// need one access node
-	accessConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.FatalLevel), 
-testnet.WithAdditionalFlag("--public-network-address=localhost:3569"),
-testnet.WithAdditionalFlag("-p=3569:9000"),
-)
+	accessConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.FatalLevel))
 	nodeConfigs = append(nodeConfigs, accessConfig)
 
 	// need one execution node
@@ -97,10 +93,10 @@ testnet.WithAdditionalFlag("-p=3569:9000"),
 }
 
 func (suite *ObserverSuite) TestObserver() {
-	//gRPCAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort])
-gRPCAddress := "0.0.0.0:3569"
-//	gRPCAddress := "0.0.0.0:3573"
-suite.T().Logf("grpc address: %v\n", gRPCAddress)
+	gRPCAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.ObserverServiceAPIPort])
+	// gRPCAddress := "0.0.0.0:3569"
+	// gRPCAddress := "0.0.0.0:3573"
+	suite.T().Logf("grpc address: %v\n", gRPCAddress)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, gRPCAddress, grpc.WithInsecure())
