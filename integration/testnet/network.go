@@ -586,6 +586,7 @@ func PrepareFlowNetwork(t *testing.T, networkConf NetworkConfig) *FlowNetwork {
 		Containers:                  make(map[string]*Container, nNodes),
 		ConsensusFollowers:          make(map[flow.Identifier]consensus_follower.ConsensusFollower, len(networkConf.ConsensusFollowers)),
 		AccessPorts:                 make(map[string]string),
+		ObserverPorts:               make(map[string]string),
 		AccessPortsByContainerName:  make(map[string]string),
 		MetricsPortsByContainerName: make(map[string]string),
 		root:                        root,
