@@ -1,0 +1,1 @@
+{"networks": {"access": "127.0.0.1:3569","secure_access":{"host":"127.0.0.1:3570","key":"abcd"}, "observer": "127.0.0.1:3573","secure_observer": {"host":"127.0.0.1:3574","key":"abcd"}}}
