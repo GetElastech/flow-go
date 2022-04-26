@@ -2,7 +2,6 @@ package access
 
 import (
 	"context"
-//	"fmt"
 	"testing"
 	"time"
 
@@ -95,10 +94,7 @@ func (suite *ObserverSuite) SetupTest() {
 }
 
 func (suite *ObserverSuite) TestObserver() {
-//	gRPCAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.ObserverServiceAPIPort])
-	 gRPCAddress := "0.0.0.0:35305"
-	// gRPCAddress := "0.0.0.0:3573"
-	suite.T().Logf("grpc address: %v\n", gRPCAddress)
+	gRPCAddress := "0.0.0.0:35305"
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, gRPCAddress, grpc.WithInsecure())
