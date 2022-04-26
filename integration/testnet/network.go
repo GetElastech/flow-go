@@ -914,9 +914,8 @@ func (net *FlowNetwork) AddNode(t *testing.T, bootstrapDir string, nodeConf Cont
 			nodeContainer.opts.HealthCheck = testingdock.HealthCheckCustom(healthcheckAccessGRPC(hostGRPCPort))
 			nodeContainer.Ports[ObserverServiceAPIPort] = hostGRPCPort
 			nodeContainer.Ports[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
-			net.AccessPorts[ObserverServiceAPIPort] = hostGRPCPort
-			net.AccessPortsByContainerName[nodeContainer.Name()] = hostGRPCPort
-			net.AccessPorts[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
+			net.ObserverPorts[ObserverServiceAPIPort] = hostGRPCPort
+			net.ObserverPorts[ObserverServiceAPIProxyPort] = hostHTTPProxyPort
 
 		case flow.RoleConsensus:
 			// use 1 here instead of the default 5, because the integration

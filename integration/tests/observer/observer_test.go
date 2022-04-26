@@ -52,14 +52,17 @@ func (suite *ObserverSuite) SetupTest() {
 		suite.log.Info().Msg("================> Finish SetupTest")
 	}()
 
+	// need one access node
 	nodeConfigs := []testnet.NodeConfig{
-		testnet.NewNodeConfig(flow.RoleObserverService, testnet.WithLogLevel(zerolog.InfoLevel), 
-		testnet.WithAdditionalFlag(fmt.Sprintf("--bootstrap-node-addresses=localhost:%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort)),
+		testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.FatalLevel))
 	}
 
-	// need one access node
-	accessConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.FatalLevel))
-	nodeConfigs = append(nodeConfigs, accessConfig)
+	observerConfig := testnet.NewNodeConfig(
+		flow.RoleObserverService,
+		testnet.WithLogLevel(zerolog.InfoLevel),
+		testnet.WithAdditionalFlag(fmt.Sprintf("--bootstrap-node-addresses=localhost:%s", suite.net.AccessPorts[testnet.AccessNodeAPIPort])),
+	)
+	nodeConfigs = append(nodeConfigs, observerConfig)
 
 	// need one execution node
 	exeConfig := testnet.NewNodeConfig(flow.RoleExecution, testnet.WithLogLevel(zerolog.FatalLevel))
