@@ -1,4 +1,4 @@
-package node_builder
+package observer
 
 import (
 	"encoding/json"
@@ -138,7 +138,7 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 		nodeInfoFile:                 "",
 		apiRatelimits:                nil,
 		apiBurstlimits:               nil,
-		staked:                       false,
+		staked:                       true,
 		bootstrapNodeAddresses:       []string{},
 		bootstrapNodePublicKeys:      []string{},
 		supportsUnstakedFollower:     false,
@@ -414,7 +414,7 @@ func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 	}
 }
 func (builder *FlowAccessNodeBuilder) IsStaked() bool {
-	return true
+	return builder.staked
 }
 
 func (builder *FlowAccessNodeBuilder) ParseFlags() error {
