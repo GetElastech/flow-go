@@ -54,7 +54,7 @@ func (suite *ObserverSuite) SetupTest() {
 
 	// need one access node
 	nodeConfigs := []testnet.NodeConfig{
-		testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.FatalLevel))
+		testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.FatalLevel)),
 	}
 
 	observerConfig := testnet.NewNodeConfig(
