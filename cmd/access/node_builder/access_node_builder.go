@@ -138,7 +138,7 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 		nodeInfoFile:                 "",
 		apiRatelimits:                nil,
 		apiBurstlimits:               nil,
-		staked:                       true,
+		staked:                       false,
 		bootstrapNodeAddresses:       []string{},
 		bootstrapNodePublicKeys:      []string{},
 		supportsUnstakedFollower:     false,
@@ -383,6 +383,12 @@ func WithBootStrapPeers(bootstrapNodes ...*flow.Identity) Option {
 	}
 }
 
+func UnstakedService() Option {
+	return func(config *AccessNodeConfig) {
+		config.staked = false
+	}
+}
+
 func SupportsUnstakedNode(enable bool) Option {
 	return func(config *AccessNodeConfig) {
 		config.supportsUnstakedFollower = enable
@@ -414,7 +420,7 @@ func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 	}
 }
 func (builder *FlowAccessNodeBuilder) IsStaked() bool {
-	return builder.staked
+	return true
 }
 
 func (builder *FlowAccessNodeBuilder) ParseFlags() error {

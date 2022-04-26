@@ -1,4 +1,0 @@
-Merge changes from feature/observer-prc-0425a
-Make sure observer returns the same last block as access
-Remove unused staked access node features from observer
-
