@@ -152,7 +152,8 @@ func (builder *UnstakedAccessNodeBuilder) Initialize() error {
 
 func (builder *UnstakedAccessNodeBuilder) validateParams() error {
 	if builder.BaseConfig.BindAddr == cmd.NotSet || builder.BaseConfig.BindAddr == "" {
-		return errors.New("bind address not specified")
+		builder.BaseConfig.BindAddr = "access_3:9003"
+		//return errors.New("bind address not specified")
 	}
 	if builder.AccessNodeConfig.NetworkKey == nil && builder.AccessNodeConfig.observerNetworkingKeyPath == cmd.NotSet {
 		return errors.New("networking key not provided")

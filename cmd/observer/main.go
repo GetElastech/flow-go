@@ -14,8 +14,13 @@ func main() {
 		anb.Logger.Fatal().Err(err).Send()
 	}
 
-	// choose a node builder based on anb.staked
-	builder := observer.NewUnstakedAccessNodeBuilder(anb)
+	// choose a staked or an unstaked node builder based on anb.staked
+	var builder observer.AccessNodeBuilder
+	if anb.IsStaked() {
+		builder = observer.NewUnstakedAccessNodeBuilder(anb)
+	} else {
+		builder = observer.NewUnstakedAccessNodeBuilder(anb)
+	}
 
 	if err := builder.Initialize(); err != nil {
 		anb.Logger.Fatal().Err(err).Send()
