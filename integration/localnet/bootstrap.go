@@ -378,7 +378,7 @@ func prepareService(container testnet.ContainerConfig, i int, n int) Service {
 			Context:    "../../",
 			Dockerfile: "cmd/Dockerfile",
 			Args: map[string]string{
-				"TARGET":  container.Role.String(),
+				"TARGET":  fmt.Sprintf("./cmd/%s", container.Role.String()),
 				"VERSION": build.Semver(),
 				"COMMIT":  build.Commit(),
 				"GOARCH":  runtime.GOARCH,
@@ -733,7 +733,7 @@ func prepareObserverService(i int, observerName string, agPublicKey string, prof
 			Context:    "../../",
 			Dockerfile: "cmd/Dockerfile",
 			Args: map[string]string{
-				"TARGET":  "observer",
+				"TARGET":  "./cmd/observer",
 				"VERSION": build.Semver(),
 				"COMMIT":  build.Commit(),
 				"GOARCH":  runtime.GOARCH,
@@ -776,7 +776,7 @@ func withObserverFeature(service Service, i int, observerName string, agPublicKe
 		Context:    "../../",
 		Dockerfile: "cmd/Dockerfile",
 		Args: map[string]string{
-			"TARGET":  "observer",
+			"TARGET":  "./cmd/observer",
 			"VERSION": build.Semver(),
 			"COMMIT":  build.Commit(),
 			"GOARCH":  runtime.GOARCH,
