@@ -40,7 +40,6 @@ jobs:
         # https://github.com/golangci/golangci-lint-action/issues/244
         skip-pkg-cache: true
         # Make sure we get accurate results
-        skip-cache: true
         only-new-issues: true
         skip-build-cache: true
     - name: Run ShellCheck
