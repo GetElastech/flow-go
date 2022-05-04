@@ -1,5 +1,6 @@
 name: Observer E2E
 
+#TODO https://github.com/onflow/flow-go/pull/2370#discussion_r865156837
 on:
   push:
     branches:
@@ -65,6 +66,8 @@ jobs:
       run: bash -c 'cd integration/localnet/ && make -e OBSERVER=1 init && make start'
     - name: Ensure Observer is started
       run: docker ps -q -f name=localnet_observer_1_1
+    - name: Ensure Observer is running unstaked
+      run: docker logs localnet_observer_1_1 2>&1 | grep '"unstaked network"' 
     - name: Wait for finalized blocks and check them with Observer
       run: /tmp/flow -f integration/localnet/flow-localnet.json -n access blocks get latest && /tmp/flow -f integration/localnet/flow-localnet.json -n observer blocks get latest
     - name: Get Version ensuring the official client build can connect
