@@ -34,6 +34,7 @@ issues:
     - "StakedAccessNodeBuilder has no field or method"
     - "FlowAccessNodeBuilder has no field or method"
     - "ObserverNodeBuilder has no field or method"
+    - "NewCombinedVerifier not declared by package verification"
     # Disable false positives
 
   exclude-rules:
