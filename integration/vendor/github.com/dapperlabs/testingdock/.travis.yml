@@ -1,0 +1,14 @@
+language: go
+go:
+  - 1.8.x
+services:
+  - docker
+before_install:
+  - mkdir -p $GOPATH/bin
+  - go get -u github.com/golang/dep/cmd/dep
+install:
+  - dep ensure
+script:
+  - go test -race -timeout=50s -coverprofile=coverage.txt
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
