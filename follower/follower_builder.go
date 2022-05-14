@@ -25,7 +25,6 @@ import (
 
 	"github.com/onflow/flow/protobuf/go/flow/access"
 	"github.com/rs/zerolog"
-	"github.com/spf13/pflag"
 
 	"github.com/onflow/flow-go/crypto"
 	"github.com/onflow/flow-go/module/compliance"
