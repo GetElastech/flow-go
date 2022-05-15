@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -38,7 +37,6 @@ import (
 	"github.com/onflow/flow-go/consensus/hotstuff/verification"
 	recovery "github.com/onflow/flow-go/consensus/recovery/protocol"
 	"github.com/onflow/flow-go/engine/access/rpc"
-	"github.com/onflow/flow-go/engine/access/rpc/backend"
 	"github.com/onflow/flow-go/engine/common/follower"
 	followereng "github.com/onflow/flow-go/engine/common/follower"
 	synceng "github.com/onflow/flow-go/engine/common/synchronization"
@@ -87,28 +85,10 @@ type ObserverBuilder interface {
 // For a node running as a standalone process, the config fields will be populated from the command line params,
 // while for a node running as a library, the config fields are expected to be initialized by the caller.
 type ObserverServiceConfig struct {
-	staked                       bool // deprecated
-	bootstrapNodeAddresses       []string
-	bootstrapNodePublicKeys      []string
-	observerNetworkingKeyPath    string
-	bootstrapIdentities          flow.IdentityList // the identity list of bootstrap peers the node uses to discover other nodes
-	NetworkKey                   crypto.PrivateKey // the networking key passed in by the caller when being used as a library
-	supportsPublicFollower       bool              // Observers will support streaming to observers later
-	collectionGRPCPort           uint              // deprecated
-	executionGRPCPort            uint              // deprecated
-	apiRatelimits                map[string]int
-	apiBurstlimits               map[string]int
-	rpcConf                      rpc.Config
-	ExecutionNodeAddress         string                   // deprecated
-	HistoricalAccessRPCs         []access.AccessAPIClient //deprecated
-	logTxTimeToFinalized         bool
-	logTxTimeToExecuted          bool
-	logTxTimeToFinalizedExecuted bool
-	retryEnabled                 bool
-	rpcMetricsEnabled            bool
-	baseOptions                  []cmd.Option
-
-	PublicNetworkConfig PublicNetworkConfig
+	bootstrapNodeAddresses  []string
+	bootstrapNodePublicKeys []string
+	bootstrapIdentities     flow.IdentityList // the identity list of bootstrap peers the node uses to discover other nodes
+	NetworkKey              crypto.PrivateKey // the networking key passed in by the caller when being used as a library
 }
 
 type PublicNetworkConfig struct {
@@ -121,38 +101,8 @@ type PublicNetworkConfig struct {
 // DefaultObserverServiceConfig defines all the default values for the ObserverServiceConfig
 func DefaultObserverServiceConfig() *ObserverServiceConfig {
 	return &ObserverServiceConfig{
-		collectionGRPCPort: 9000,
-		executionGRPCPort:  9000,
-		rpcConf: rpc.Config{
-			UnsecureGRPCListenAddr:    "0.0.0.0:9000",
-			SecureGRPCListenAddr:      "0.0.0.0:9001",
-			HTTPListenAddr:            "0.0.0.0:8000",
-			RESTListenAddr:            "",
-			CollectionAddr:            "",
-			HistoricalAccessAddrs:     "",
-			CollectionClientTimeout:   3 * time.Second,
-			ExecutionClientTimeout:    3 * time.Second,
-			MaxHeightRange:            backend.DefaultMaxHeightRange,
-			PreferredExecutionNodeIDs: nil,
-			FixedExecutionNodeIDs:     nil,
-		},
-		ExecutionNodeAddress:         "localhost:9000",
-		logTxTimeToFinalized:         false,
-		logTxTimeToExecuted:          false,
-		logTxTimeToFinalizedExecuted: false,
-		retryEnabled:                 false,
-		rpcMetricsEnabled:            false,
-		apiRatelimits:                nil,
-		apiBurstlimits:               nil,
-		staked:                       false, // deprecated but kept to support temporary boostrap code
-		bootstrapNodeAddresses:       []string{},
-		bootstrapNodePublicKeys:      []string{},
-		supportsPublicFollower:       false,
-		PublicNetworkConfig: PublicNetworkConfig{
-			BindAddress: cmd.NotSet,
-			Metrics:     metrics.NewNoopCollector(),
-		},
-		observerNetworkingKeyPath: cmd.NotSet,
+		bootstrapNodeAddresses:  []string{},
+		bootstrapNodePublicKeys: []string{},
 	}
 }
 
@@ -393,12 +343,6 @@ func WithNetworkKey(key crypto.PrivateKey) FollowerOption {
 	}
 }
 
-func WithBaseOptions(baseOptions []cmd.Option) FollowerOption {
-	return func(config *ObserverServiceConfig) {
-		config.baseOptions = baseOptions
-	}
-}
-
 func FlowAccessNode(opts ...FollowerOption) *FlowObserverServiceBuilder {
 	config := DefaultObserverServiceConfig()
 	for _, opt := range opts {
@@ -407,7 +351,7 @@ func FlowAccessNode(opts ...FollowerOption) *FlowObserverServiceBuilder {
 
 	return &FlowObserverServiceBuilder{
 		ObserverServiceConfig:   config,
-		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.baseOptions...),
+		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String()),
 		FinalizationDistributor: pubsub.NewFinalizationDistributor(),
 	}
 }
@@ -512,13 +456,6 @@ func NewObserverServiceBuilder(builder *FlowObserverServiceBuilder) *ObserverSer
 func (builder *ObserverServiceBuilder) initNodeInfo() error {
 	// use the networking key that has been passed in the config, or load from the configured file
 	networkingKey := builder.ObserverServiceConfig.NetworkKey
-	if networkingKey == nil {
-		var err error
-		networkingKey, err = loadNetworkingKey(builder.observerNetworkingKeyPath)
-		if err != nil {
-			return fmt.Errorf("could not load networking private key: %w", err)
-		}
-	}
 
 	pubKey, err := keyutils.LibP2PPublicKeyFromFlow(networkingKey.PublicKey())
 	if err != nil {
@@ -617,7 +554,7 @@ func (builder *ObserverServiceBuilder) validateParams() error {
 	if builder.BaseConfig.BindAddr == cmd.NotSet || builder.BaseConfig.BindAddr == "" {
 		return errors.New("bind address not specified")
 	}
-	if builder.ObserverServiceConfig.NetworkKey == nil && builder.ObserverServiceConfig.observerNetworkingKeyPath == cmd.NotSet {
+	if builder.ObserverServiceConfig.NetworkKey == nil {
 		return errors.New("networking key not provided")
 	}
 	if len(builder.bootstrapIdentities) > 0 {
@@ -799,23 +736,4 @@ func (builder *ObserverServiceBuilder) initMiddleware(nodeID flow.Identifier,
 	)
 
 	return builder.Middleware
-}
-
-func loadNetworkingKey(path string) (crypto.PrivateKey, error) {
-	data, err := io.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("could not read networking key (path=%s): %w", path, err)
-	}
-
-	keyBytes, err := hex.DecodeString(strings.Trim(string(data), "\n "))
-	if err != nil {
-		return nil, fmt.Errorf("could not hex decode networking key (path=%s): %w", path, err)
-	}
-
-	networkingKey, err := crypto.DecodePrivateKey(crypto.ECDSASecp256k1, keyBytes)
-	if err != nil {
-		return nil, fmt.Errorf("could not decode networking key (path=%s): %w", path, err)
-	}
-
-	return networkingKey, nil
 }
