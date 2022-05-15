@@ -89,9 +89,6 @@ type ObserverServiceConfig struct {
 	bootstrapNodePublicKeys []string
 	bootstrapIdentities     flow.IdentityList // the identity list of bootstrap peers the node uses to discover other nodes
 	NetworkKey              crypto.PrivateKey // the networking key passed in by the caller when being used as a library
-	baseOptions             []cmd.Option
-
-	PublicNetworkConfig PublicNetworkConfig
 }
 
 type PublicNetworkConfig struct {
@@ -106,10 +103,6 @@ func DefaultObserverServiceConfig() *ObserverServiceConfig {
 	return &ObserverServiceConfig{
 		bootstrapNodeAddresses:  []string{},
 		bootstrapNodePublicKeys: []string{},
-		PublicNetworkConfig: PublicNetworkConfig{
-			BindAddress: cmd.NotSet,
-			Metrics:     metrics.NewNoopCollector(),
-		},
 	}
 }
 
@@ -350,12 +343,6 @@ func WithNetworkKey(key crypto.PrivateKey) FollowerOption {
 	}
 }
 
-func WithBaseOptions(baseOptions []cmd.Option) FollowerOption {
-	return func(config *ObserverServiceConfig) {
-		config.baseOptions = baseOptions
-	}
-}
-
 func FlowAccessNode(opts ...FollowerOption) *FlowObserverServiceBuilder {
 	config := DefaultObserverServiceConfig()
 	for _, opt := range opts {
@@ -364,7 +351,7 @@ func FlowAccessNode(opts ...FollowerOption) *FlowObserverServiceBuilder {
 
 	return &FlowObserverServiceBuilder{
 		ObserverServiceConfig:   config,
-		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.baseOptions...),
+		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String()),
 		FinalizationDistributor: pubsub.NewFinalizationDistributor(),
 	}
 }
@@ -749,23 +736,4 @@ func (builder *ObserverServiceBuilder) initMiddleware(nodeID flow.Identifier,
 	)
 
 	return builder.Middleware
-}
-
-func loadNetworkingKey(path string) (crypto.PrivateKey, error) {
-	data, err := io.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("could not read networking key (path=%s): %w", path, err)
-	}
-
-	keyBytes, err := hex.DecodeString(strings.Trim(string(data), "\n "))
-	if err != nil {
-		return nil, fmt.Errorf("could not hex decode networking key (path=%s): %w", path, err)
-	}
-
-	networkingKey, err := crypto.DecodePrivateKey(crypto.ECDSASecp256k1, keyBytes)
-	if err != nil {
-		return nil, fmt.Errorf("could not decode networking key (path=%s): %w", path, err)
-	}
-
-	return networkingKey, nil
 }
