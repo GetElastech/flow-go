@@ -178,6 +178,154 @@ func (suite *Suite) TestGetLatestBlock_InternalFailure() {
 	suite.Require().ErrorIs(err, OutputInternalErr)
 }
 
+func (suite *Suite) TestGetBlockById_Success() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+
+	suite.blocks.
+		On("ByID", block.ID()).
+		Return(&block, nil).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	respBlock, err := backend.GetBlockByID(context.Background(), block.ID())
+	suite.checkResponse(respBlock, err)
+
+	// make sure we got the latest sealed block
+	suite.Require().Equal(block.ID(), respBlock.ID())
+
+	suite.assertAllExpectations()
+}
+
+func (suite *Suite) TestGetBlockById_StorageNotFoundFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+
+	suite.blocks.
+		On("ByID", block.ID()).
+		Return(&block, storage.ErrNotFound).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockByID(context.Background(), block.ID())
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, StorageNotFoundErr)
+}
+
+func (suite *Suite) TestGetBlockById_CodesNotFoundFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+
+	suite.blocks.
+		On("ByID", block.ID()).
+		Return(&block, CodesNotFoundErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockByID(context.Background(), block.ID())
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, CodesNotFoundErr)
+}
+
+func (suite *Suite) TestGetBlockById_InternalFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+
+	suite.blocks.
+		On("ByID", block.ID()).
+		Return(&block, InternalErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockByID(context.Background(), block.ID())
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, OutputInternalErr)
+}
+
+func (suite *Suite) TestGetBlockByHeight_Success() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+	height := block.Header.Height
+
+	suite.blocks.
+		On("ByHeight", height).
+		Return(&block, nil).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	respBlock, err := backend.GetBlockByHeight(context.Background(), height)
+	suite.checkResponse(respBlock, err)
+
+	// make sure we got the latest sealed block
+	suite.Require().Equal(block.ID(), respBlock.ID())
+
+	suite.assertAllExpectations()
+}
+
+func (suite *Suite) TestGetBlockByHeight_StorageNotFoundFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+	height := block.Header.Height
+
+	suite.blocks.
+		On("ByHeight", height).
+		Return(&block, StorageNotFoundErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockByHeight(context.Background(), height)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, StorageNotFoundErr)
+}
+
+func (suite *Suite) TestGetBlockByHeight_CodesNotFoundFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+	height := block.Header.Height
+
+	suite.blocks.
+		On("ByHeight", height).
+		Return(&block, CodesNotFoundErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockByHeight(context.Background(), height)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, CodesNotFoundErr)
+}
+
+func (suite *Suite) TestGetBlockByHeight_InternalFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+	height := block.Header.Height
+
+	suite.blocks.
+		On("ByHeight", height).
+		Return(&block, InternalErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockByHeight(context.Background(), height)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, OutputInternalErr)
+}
+
 func (suite *Suite) TestGetLatestFinalizedBlockHeader_Success() {
 	// setup the mocks
 	blockHeader := unittest.BlockHeaderFixture()
@@ -265,7 +413,7 @@ func (suite *Suite) TestGetLatestBlockHeader_InternalFailure() {
 	suite.Require().ErrorIs(err, OutputInternalErr)
 }
 
-func (suite *Suite) TestGetBlockHeaderByID() {
+func (suite *Suite) TestGetBlockHeaderByID_Success() {
 	// setup the mocks
 	block := unittest.BlockFixture()
 	header := block.Header
@@ -290,7 +438,61 @@ func (suite *Suite) TestGetBlockHeaderByID() {
 	suite.assertAllExpectations()
 }
 
-func (suite *Suite) TestGetBlockHeaderByHeight() {
+func (suite *Suite) TestGetBlockHeaderByID_StorageNotFoundFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+	header := block.Header
+
+	suite.headers.
+		On("ByBlockID", block.ID()).
+		Return(header, StorageNotFoundErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockHeaderByID(context.Background(), block.ID())
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, StorageNotFoundErr)
+}
+
+func (suite *Suite) TestGetBlockHeaderByID_CodesNotFoundFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+	header := block.Header
+
+	suite.headers.
+		On("ByBlockID", block.ID()).
+		Return(header, CodesNotFoundErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockHeaderByID(context.Background(), block.ID())
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, CodesNotFoundErr)
+}
+
+func (suite *Suite) TestGetBlockHeaderByID_InternalFailure() {
+	// setup the mocks
+	block := unittest.BlockFixture()
+	header := block.Header
+
+	suite.headers.
+		On("ByBlockID", block.ID()).
+		Return(header, InternalErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockHeaderByID(context.Background(), block.ID())
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, OutputInternalErr)
+}
+
+func (suite *Suite) TestGetBlockHeaderByHeight_Success() {
 	// setup the mocks
 	blockHeader := unittest.BlockHeaderFixture()
 	headerHeight := blockHeader.Height
@@ -314,47 +516,58 @@ func (suite *Suite) TestGetBlockHeaderByHeight() {
 	suite.assertAllExpectations()
 }
 
-func (suite *Suite) TestGetBlockByHeight() {
+func (suite *Suite) TestGetBlockHeaderByHeight_StorageNotFoundFailure() {
 	// setup the mocks
-	block := unittest.BlockFixture()
-	height := block.Header.Height
+	blockHeader := unittest.BlockHeaderFixture()
+	headerHeight := blockHeader.Height
 
-	suite.blocks.
-		On("ByHeight", height).
-		Return(&block, nil).
+	suite.headers.
+		On("ByHeight", headerHeight).
+		Return(&blockHeader, StorageNotFoundErr).
 		Once()
 
 	backend := New(suite.state, suite.blocks, suite.headers)
 
 	// query the handler for the latest sealed block
-	respBlock, err := backend.GetBlockByHeight(context.Background(), height)
-	suite.checkResponse(respBlock, err)
-
-	// make sure we got the latest sealed block
-	suite.Require().Equal(block.ID(), respBlock.ID())
-
-	suite.assertAllExpectations()
+	_, err := backend.GetBlockHeaderByHeight(context.Background(), headerHeight)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, StorageNotFoundErr)
 }
 
-func (suite *Suite) TestGetBlockById() {
+func (suite *Suite) TestGetBlockHeaderByHeight_CodesNotFoundFailure() {
 	// setup the mocks
-	block := unittest.BlockFixture()
+	blockHeader := unittest.BlockHeaderFixture()
+	headerHeight := blockHeader.Height
 
-	suite.blocks.
-		On("ByID", block.ID()).
-		Return(&block, nil).
+	suite.headers.
+		On("ByHeight", headerHeight).
+		Return(&blockHeader, CodesNotFoundErr).
 		Once()
 
 	backend := New(suite.state, suite.blocks, suite.headers)
 
 	// query the handler for the latest sealed block
-	respBlock, err := backend.GetBlockByID(context.Background(), block.ID())
-	suite.checkResponse(respBlock, err)
+	_, err := backend.GetBlockHeaderByHeight(context.Background(), headerHeight)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, CodesNotFoundErr)
+}
 
-	// make sure we got the latest sealed block
-	suite.Require().Equal(block.ID(), respBlock.ID())
+func (suite *Suite) TestGetBlockHeaderByHeight_InternalFailure() {
+	// setup the mocks
+	blockHeader := unittest.BlockHeaderFixture()
+	headerHeight := blockHeader.Height
 
-	suite.assertAllExpectations()
+	suite.headers.
+		On("ByHeight", headerHeight).
+		Return(&blockHeader, InternalErr).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest sealed block
+	_, err := backend.GetBlockHeaderByHeight(context.Background(), headerHeight)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, OutputInternalErr)
 }
 
 func (suite *Suite) checkResponse(resp interface{}, err error) {
