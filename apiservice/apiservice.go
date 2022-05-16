@@ -110,17 +110,23 @@ func (h *FlowAPIService) GetCollectionByID(context context.Context, req *access.
 
 func (h *FlowAPIService) SendTransaction(context context.Context, req *access.SendTransactionRequest) (*access.SendTransactionResponse, error) {
 	// This is a passthrough request
-        upstream, err := h.client()
-        if err != nil || upstream == nil {
-                return nil, status.Errorf(codes.Unimplemented, "method not implemented")
-        }
-        return upstream.SendTransaction(context, req)
+	upstream, err := h.client()
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
+		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
+	}
+	return upstream.SendTransaction(context, req)
 }
 
 func (h *FlowAPIService) GetTransaction(context context.Context, req *access.GetTransactionRequest) (*access.TransactionResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.GetTransaction(context, req)
@@ -129,7 +135,10 @@ func (h *FlowAPIService) GetTransaction(context context.Context, req *access.Get
 func (h *FlowAPIService) GetTransactionResult(context context.Context, req *access.GetTransactionRequest) (*access.TransactionResultResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.GetTransactionResult(context, req)
@@ -138,7 +147,10 @@ func (h *FlowAPIService) GetTransactionResult(context context.Context, req *acce
 func (h *FlowAPIService) GetTransactionResultByIndex(context context.Context, req *access.GetTransactionByIndexRequest) (*access.TransactionResultResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.GetTransactionResultByIndex(context, req)
@@ -147,7 +159,10 @@ func (h *FlowAPIService) GetTransactionResultByIndex(context context.Context, re
 func (h *FlowAPIService) GetAccount(context context.Context, req *access.GetAccountRequest) (*access.GetAccountResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.GetAccount(context, req)
@@ -156,7 +171,10 @@ func (h *FlowAPIService) GetAccount(context context.Context, req *access.GetAcco
 func (h *FlowAPIService) GetAccountAtLatestBlock(context context.Context, req *access.GetAccountAtLatestBlockRequest) (*access.AccountResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.GetAccountAtLatestBlock(context, req)
@@ -165,7 +183,10 @@ func (h *FlowAPIService) GetAccountAtLatestBlock(context context.Context, req *a
 func (h *FlowAPIService) GetAccountAtBlockHeight(context context.Context, req *access.GetAccountAtBlockHeightRequest) (*access.AccountResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.GetAccountAtBlockHeight(context, req)
@@ -174,7 +195,10 @@ func (h *FlowAPIService) GetAccountAtBlockHeight(context context.Context, req *a
 func (h *FlowAPIService) ExecuteScriptAtLatestBlock(context context.Context, req *access.ExecuteScriptAtLatestBlockRequest) (*access.ExecuteScriptResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.ExecuteScriptAtLatestBlock(context, req)
@@ -183,7 +207,10 @@ func (h *FlowAPIService) ExecuteScriptAtLatestBlock(context context.Context, req
 func (h *FlowAPIService) ExecuteScriptAtBlockID(context context.Context, req *access.ExecuteScriptAtBlockIDRequest) (*access.ExecuteScriptResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.ExecuteScriptAtBlockID(context, req)
@@ -192,7 +219,10 @@ func (h *FlowAPIService) ExecuteScriptAtBlockID(context context.Context, req *ac
 func (h *FlowAPIService) ExecuteScriptAtBlockHeight(context context.Context, req *access.ExecuteScriptAtBlockHeightRequest) (*access.ExecuteScriptResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.ExecuteScriptAtBlockHeight(context, req)
@@ -201,7 +231,10 @@ func (h *FlowAPIService) ExecuteScriptAtBlockHeight(context context.Context, req
 func (h *FlowAPIService) GetEventsForHeightRange(context context.Context, req *access.GetEventsForHeightRangeRequest) (*access.EventsResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.GetEventsForHeightRange(context, req)
@@ -210,7 +243,10 @@ func (h *FlowAPIService) GetEventsForHeightRange(context context.Context, req *a
 func (h *FlowAPIService) GetEventsForBlockIDs(context context.Context, req *access.GetEventsForBlockIDsRequest) (*access.EventsResponse, error) {
 	// This is a passthrough request
 	upstream, err := h.client()
-	if err != nil || upstream == nil {
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
 	}
 	return upstream.GetEventsForBlockIDs(context, req)
@@ -225,10 +261,13 @@ func (h *FlowAPIService) GetLatestProtocolStateSnapshot(context context.Context,
 }
 
 func (h *FlowAPIService) GetExecutionResultForBlockID(context context.Context, req *access.GetExecutionResultForBlockIDRequest) (*access.ExecutionResultForBlockIDResponse, error) {
-        // This is a passthrough request
-        upstream, err := h.client()
-        if err != nil || upstream == nil {
-                return nil, status.Errorf(codes.Unimplemented, "method not implemented")
-        }
-        return upstream.GetExecutionResultForBlockID(context, req)
+	// This is a passthrough request
+	upstream, err := h.client()
+	if err != nil {
+		return nil, err
+	}
+	if upstream == nil {
+		return nil, status.Errorf(codes.Unimplemented, "method not implemented")
+	}
+	return upstream.GetExecutionResultForBlockID(context, req)
 }
