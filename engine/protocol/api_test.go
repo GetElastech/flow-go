@@ -17,8 +17,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var InternalErr = status.Errorf(codes.Internal, "failed to find: %v", status.Errorf(codes.Internal, "internal"))
-var CodesNotFoundErr = status.Errorf(codes.NotFound, "not found: %v", storage.ErrNotFound)
+var CodesNotFoundErr = status.Errorf(codes.NotFound, "not found")
+var StorageNotFoundErr = status.Errorf(codes.NotFound, "not found: %v", storage.ErrNotFound)
+var InternalErr = status.Errorf(codes.Internal, "internal")
+var OutputInternalErr = status.Errorf(codes.Internal, "failed to find: %v", status.Errorf(codes.Internal, "internal"))
 
 type Suite struct {
 	suite.Suite
@@ -41,6 +43,139 @@ func (suite *Suite) SetupTest() {
 	suite.state = new(protocol.State)
 	suite.blocks = new(storagemock.Blocks)
 	suite.headers = new(storagemock.Headers)
+}
+
+func (suite *Suite) TestGetLatestFinalizedBlock_Success() {
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+
+	// setup the mocks
+	block := unittest.BlockFixture()
+	header := block.Header
+
+	suite.snapshot.
+		On("Head").
+		Return(header, nil).
+		Once()
+
+	suite.blocks.
+		On("ByID", header.ID()).
+		Return(&block, nil).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized header
+	respBlock, err := backend.GetLatestBlock(context.Background(), false)
+	suite.checkResponse(respBlock, err)
+
+	// make sure we got the latest header
+	suite.Require().Equal(block, *respBlock)
+
+	suite.assertAllExpectations()
+}
+
+func (suite *Suite) TestGetLatestSealedBlock_Success() {
+	suite.state.On("Sealed").Return(suite.snapshot, nil).Maybe()
+
+	// setup the mocks
+	block := unittest.BlockFixture()
+	header := block.Header
+
+	suite.snapshot.
+		On("Head").
+		Return(header, nil).
+		Once()
+
+	suite.blocks.
+		On("ByID", header.ID()).
+		Return(&block, nil).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized header
+	respBlock, err := backend.GetLatestBlock(context.Background(), true)
+	suite.checkResponse(respBlock, err)
+
+	// make sure we got the latest header
+	suite.Require().Equal(block, *respBlock)
+
+	suite.assertAllExpectations()
+}
+
+func (suite *Suite) TestGetLatestBlock_StorageNotFoundFailure() {
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+
+	// setup the mocks
+	block := unittest.BlockFixture()
+	header := block.Header
+
+	suite.snapshot.
+		On("Head").
+		Return(header, storage.ErrNotFound).
+		Once()
+
+	suite.blocks.
+		On("ByID", header.ID()).
+		Return(&block, nil).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized header
+	_, err := backend.GetLatestBlock(context.Background(), false)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, StorageNotFoundErr)
+}
+
+func (suite *Suite) TestGetLatestBlock_CodesNotFoundFailure() {
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+
+	// setup the mocks
+	block := unittest.BlockFixture()
+	header := block.Header
+
+	suite.snapshot.
+		On("Head").
+		Return(header, CodesNotFoundErr).
+		Once()
+
+	suite.blocks.
+		On("ByID", header.ID()).
+		Return(&block, nil).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized header
+	_, err := backend.GetLatestBlock(context.Background(), false)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, CodesNotFoundErr)
+}
+
+func (suite *Suite) TestGetLatestBlock_InternalFailure() {
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+
+	// setup the mocks
+	block := unittest.BlockFixture()
+	header := block.Header
+
+	suite.snapshot.
+		On("Head").
+		Return(header, InternalErr).
+		Once()
+
+	suite.blocks.
+		On("ByID", header.ID()).
+		Return(&block, nil).
+		Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized header
+	_, err := backend.GetLatestBlock(context.Background(), false)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, OutputInternalErr)
 }
 
 func (suite *Suite) TestGetLatestFinalizedBlockHeader_Success() {
@@ -97,7 +232,7 @@ func (suite *Suite) TestGetLatestBlockHeader_StorageNotFoundFailure() {
 	// query the handler for the latest finalized block
 	_, err := backend.GetLatestBlockHeader(context.Background(), false)
 	suite.Require().Error(err)
-	suite.Require().ErrorIs(err, CodesNotFoundErr)
+	suite.Require().ErrorIs(err, StorageNotFoundErr)
 }
 
 func (suite *Suite) TestGetLatestBlockHeader_CodesNotFoundFailure() {
@@ -105,14 +240,14 @@ func (suite *Suite) TestGetLatestBlockHeader_CodesNotFoundFailure() {
 	blockHeader := unittest.BlockHeaderFixture()
 
 	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
-	suite.snapshot.On("Head").Return(&blockHeader, status.Errorf(codes.NotFound, "not found")).Once()
+	suite.snapshot.On("Head").Return(&blockHeader, CodesNotFoundErr).Once()
 
 	backend := New(suite.state, suite.blocks, suite.headers)
 
 	// query the handler for the latest finalized block
 	_, err := backend.GetLatestBlockHeader(context.Background(), false)
 	suite.Require().Error(err)
-	suite.Require().ErrorIs(err, status.Errorf(codes.NotFound, "not found"))
+	suite.Require().ErrorIs(err, CodesNotFoundErr)
 }
 
 func (suite *Suite) TestGetLatestBlockHeader_InternalFailure() {
@@ -120,44 +255,14 @@ func (suite *Suite) TestGetLatestBlockHeader_InternalFailure() {
 	blockHeader := unittest.BlockHeaderFixture()
 
 	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
-	suite.snapshot.On("Head").Return(&blockHeader, status.Errorf(codes.Internal, "internal")).Once()
+	suite.snapshot.On("Head").Return(&blockHeader, InternalErr).Once()
 
 	backend := New(suite.state, suite.blocks, suite.headers)
 
 	// query the handler for the latest finalized block
 	_, err := backend.GetLatestBlockHeader(context.Background(), false)
 	suite.Require().Error(err)
-	suite.Require().ErrorIs(err, InternalErr)
-}
-
-func (suite *Suite) TestGetLatestFinalizedBlock() {
-	suite.state.On("Sealed").Return(suite.snapshot, nil).Maybe()
-	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
-
-	// setup the mocks
-	block := unittest.BlockFixture()
-	header := block.Header
-
-	suite.snapshot.
-		On("Head").
-		Return(header, nil).
-		Once()
-
-	suite.blocks.
-		On("ByID", header.ID()).
-		Return(&block, nil).
-		Once()
-
-	backend := New(suite.state, suite.blocks, suite.headers)
-
-	// query the handler for the latest finalized header
-	respBlock, err := backend.GetLatestBlock(context.Background(), false)
-	suite.checkResponse(respBlock, err)
-
-	// make sure we got the latest header
-	suite.Require().Equal(block, *respBlock)
-
-	suite.assertAllExpectations()
+	suite.Require().ErrorIs(err, OutputInternalErr)
 }
 
 func (suite *Suite) TestGetBlockHeaderByID() {
