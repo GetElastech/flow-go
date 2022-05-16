@@ -128,9 +128,6 @@ func (b *backend) GetBlockHeaderByHeight(_ context.Context, height uint64) (*flo
 }
 
 func convertStorageError(err error) error {
-	if err == nil {
-		return nil
-	}
 	if status.Code(err) == codes.NotFound {
 		// Already converted
 		return err

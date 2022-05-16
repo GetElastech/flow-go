@@ -9,9 +9,16 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	protocol "github.com/onflow/flow-go/state/protocol/mock"
+	"github.com/onflow/flow-go/storage"
 	storagemock "github.com/onflow/flow-go/storage/mock"
 	"github.com/onflow/flow-go/utils/unittest"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+var InternalErr = status.Errorf(codes.Internal, "failed to find: %v", status.Errorf(codes.Internal, "internal"))
+var CodesNotFoundErr = status.Errorf(codes.NotFound, "not found: %v", storage.ErrNotFound)
 
 type Suite struct {
 	suite.Suite
@@ -36,7 +43,7 @@ func (suite *Suite) SetupTest() {
 	suite.headers = new(storagemock.Headers)
 }
 
-func (suite *Suite) TestGetLatestFinalizedBlockHeader() {
+func (suite *Suite) TestGetLatestFinalizedBlockHeader_Success() {
 	// setup the mocks
 	blockHeader := unittest.BlockHeaderFixture()
 
@@ -55,7 +62,72 @@ func (suite *Suite) TestGetLatestFinalizedBlockHeader() {
 	suite.Require().Equal(blockHeader.ParentID, respHeader.ParentID)
 
 	suite.assertAllExpectations()
+}
 
+func (suite *Suite) TestGetLatestSealedBlockHeader_Success() {
+	// setup the mocks
+	blockHeader := unittest.BlockHeaderFixture()
+
+	suite.state.On("Sealed").Return(suite.snapshot, nil).Maybe()
+	suite.snapshot.On("Head").Return(&blockHeader, nil).Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized block
+	respHeader, err := backend.GetLatestBlockHeader(context.Background(), true)
+	suite.checkResponse(respHeader, err)
+
+	// make sure we got the latest block
+	suite.Require().Equal(blockHeader.ID(), respHeader.ID())
+	suite.Require().Equal(blockHeader.Height, respHeader.Height)
+	suite.Require().Equal(blockHeader.ParentID, respHeader.ParentID)
+
+	suite.assertAllExpectations()
+}
+
+func (suite *Suite) TestGetLatestBlockHeader_StorageNotFoundFailure() {
+	// setup the mocks
+	blockHeader := unittest.BlockHeaderFixture()
+
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+	suite.snapshot.On("Head").Return(&blockHeader, storage.ErrNotFound).Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized block
+	_, err := backend.GetLatestBlockHeader(context.Background(), false)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, CodesNotFoundErr)
+}
+
+func (suite *Suite) TestGetLatestBlockHeader_CodesNotFoundFailure() {
+	// setup the mocks
+	blockHeader := unittest.BlockHeaderFixture()
+
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+	suite.snapshot.On("Head").Return(&blockHeader, status.Errorf(codes.NotFound, "not found")).Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized block
+	_, err := backend.GetLatestBlockHeader(context.Background(), false)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, status.Errorf(codes.NotFound, "not found"))
+}
+
+func (suite *Suite) TestGetLatestBlockHeader_InternalFailure() {
+	// setup the mocks
+	blockHeader := unittest.BlockHeaderFixture()
+
+	suite.state.On("Final").Return(suite.snapshot, nil).Maybe()
+	suite.snapshot.On("Head").Return(&blockHeader, status.Errorf(codes.Internal, "internal")).Once()
+
+	backend := New(suite.state, suite.blocks, suite.headers)
+
+	// query the handler for the latest finalized block
+	_, err := backend.GetLatestBlockHeader(context.Background(), false)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, InternalErr)
 }
 
 func (suite *Suite) TestGetLatestFinalizedBlock() {
