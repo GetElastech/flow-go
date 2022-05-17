@@ -3,12 +3,10 @@ package protocol
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/onflow/flow-go/fvm/blueprints"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/state/protocol"
 	"github.com/onflow/flow-go/storage"
@@ -21,7 +19,7 @@ type API interface {
 	GetLatestBlock(ctx context.Context, isSealed bool) (*flow.Block, error)
 	GetBlockByID(ctx context.Context, id flow.Identifier) (*flow.Block, error)
 	GetBlockByHeight(ctx context.Context, height uint64) (*flow.Block, error)
-	GetTransactionsByBlockID(ctx context.Context, blockID flow.Identifier) ([]*flow.TransactionBody, error)
+	GetExecutionResultForBlockID(ctx context.Context, blockID flow.Identifier) (*flow.ExecutionResult, error)
 	GetExecutionResultByID(ctx context.Context, id flow.Identifier) (*flow.ExecutionResult, error)
 }
 
@@ -29,27 +27,21 @@ type backend struct {
 	blocks           storage.Blocks
 	headers          storage.Headers
 	state            protocol.State
-	collections      storage.Collections
 	executionResults storage.ExecutionResults
-	chainID          flow.ChainID
 }
 
 func New(
 	state protocol.State,
 	blocks storage.Blocks,
 	headers storage.Headers,
-	collections storage.Collections,
 	executionResults storage.ExecutionResults,
-	chainID flow.ChainID,
 ) API {
 	b := &backend{
 
 		headers:          headers,
 		blocks:           blocks,
 		state:            state,
-		collections:      collections,
 		executionResults: executionResults,
-		chainID:          chainID,
 	}
 	return b
 }
@@ -138,6 +130,15 @@ func (b *backend) GetBlockHeaderByHeight(_ context.Context, height uint64) (*flo
 	}
 
 	return header, nil
+}
+
+func (b *backend) GetExecutionResultByBlockID(ctx context.Context, blockID flow.Identifier) (*flow.ExecutionResult, error) {
+	er, err := b.executionResults.ByBlockID(blockID)
+	if err != nil {
+		return nil, convertStorageError(err)
+	}
+
+	return er, nil
 }
 
 // GetExecutionResultByID gets an execution result by its ID.
