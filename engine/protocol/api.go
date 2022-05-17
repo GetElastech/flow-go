@@ -3,10 +3,12 @@ package protocol
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/onflow/flow-go/fvm/blueprints"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/state/protocol"
 	"github.com/onflow/flow-go/storage"
@@ -19,24 +21,35 @@ type API interface {
 	GetLatestBlock(ctx context.Context, isSealed bool) (*flow.Block, error)
 	GetBlockByID(ctx context.Context, id flow.Identifier) (*flow.Block, error)
 	GetBlockByHeight(ctx context.Context, height uint64) (*flow.Block, error)
+	GetTransactionsByBlockID(ctx context.Context, blockID flow.Identifier) ([]*flow.TransactionBody, error)
+	GetExecutionResultByID(ctx context.Context, id flow.Identifier) (*flow.ExecutionResult, error)
 }
 
 type backend struct {
-	blocks  storage.Blocks
-	headers storage.Headers
-	state   protocol.State
+	blocks           storage.Blocks
+	headers          storage.Headers
+	state            protocol.State
+	collections      storage.Collections
+	executionResults storage.ExecutionResults
+	chainID          flow.ChainID
 }
 
 func New(
 	state protocol.State,
 	blocks storage.Blocks,
 	headers storage.Headers,
+	collections storage.Collections,
+	executionResults storage.ExecutionResults,
+	chainID flow.ChainID,
 ) API {
 	b := &backend{
 
-		headers: headers,
-		blocks:  blocks,
-		state:   state,
+		headers:          headers,
+		blocks:           blocks,
+		state:            state,
+		collections:      collections,
+		executionResults: executionResults,
+		chainID:          chainID,
 	}
 	return b
 }
@@ -125,6 +138,46 @@ func (b *backend) GetBlockHeaderByHeight(_ context.Context, height uint64) (*flo
 	}
 
 	return header, nil
+}
+
+func (b *backend) GetTransactionsByBlockID(
+	ctx context.Context,
+	blockID flow.Identifier,
+) ([]*flow.TransactionBody, error) {
+	var transactions []*flow.TransactionBody
+
+	block, err := b.blocks.ByID(blockID)
+	if err != nil {
+		return nil, convertStorageError(err)
+	}
+
+	for _, guarantee := range block.Payload.Guarantees {
+		collection, err := b.collections.ByID(guarantee.CollectionID)
+		if err != nil {
+			return nil, convertStorageError(err)
+		}
+
+		transactions = append(transactions, collection.Transactions...)
+	}
+
+	systemTx, err := blueprints.SystemChunkTransaction(b.chainID.Chain())
+	if err != nil {
+		return nil, fmt.Errorf("could not get system chunk transaction: %w", err)
+	}
+
+	transactions = append(transactions, systemTx)
+
+	return transactions, nil
+}
+
+// GetExecutionResultByID gets an execution result by its ID.
+func (b *backend) GetExecutionResultByID(ctx context.Context, id flow.Identifier) (*flow.ExecutionResult, error) {
+	result, err := b.executionResults.ByID(id)
+	if err != nil {
+		return nil, convertStorageError(err)
+	}
+
+	return result, nil
 }
 
 func convertStorageError(err error) error {
