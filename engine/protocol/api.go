@@ -140,36 +140,6 @@ func (b *backend) GetBlockHeaderByHeight(_ context.Context, height uint64) (*flo
 	return header, nil
 }
 
-func (b *backend) GetTransactionsByBlockID(
-	ctx context.Context,
-	blockID flow.Identifier,
-) ([]*flow.TransactionBody, error) {
-	var transactions []*flow.TransactionBody
-
-	block, err := b.blocks.ByID(blockID)
-	if err != nil {
-		return nil, convertStorageError(err)
-	}
-
-	for _, guarantee := range block.Payload.Guarantees {
-		collection, err := b.collections.ByID(guarantee.CollectionID)
-		if err != nil {
-			return nil, convertStorageError(err)
-		}
-
-		transactions = append(transactions, collection.Transactions...)
-	}
-
-	systemTx, err := blueprints.SystemChunkTransaction(b.chainID.Chain())
-	if err != nil {
-		return nil, fmt.Errorf("could not get system chunk transaction: %w", err)
-	}
-
-	transactions = append(transactions, systemTx)
-
-	return transactions, nil
-}
-
 // GetExecutionResultByID gets an execution result by its ID.
 func (b *backend) GetExecutionResultByID(ctx context.Context, id flow.Identifier) (*flow.ExecutionResult, error) {
 	result, err := b.executionResults.ByID(id)
