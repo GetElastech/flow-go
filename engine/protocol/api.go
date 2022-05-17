@@ -19,8 +19,8 @@ type API interface {
 	GetLatestBlock(ctx context.Context, isSealed bool) (*flow.Block, error)
 	GetBlockByID(ctx context.Context, id flow.Identifier) (*flow.Block, error)
 	GetBlockByHeight(ctx context.Context, height uint64) (*flow.Block, error)
-	GetExecutionResultByBlockID(ctx context.Context, blockID flow.Identifier) (*flow.ExecutionResult, error)
 	GetExecutionResultByID(ctx context.Context, id flow.Identifier) (*flow.ExecutionResult, error)
+	GetExecutionResultByBlockID(ctx context.Context, blockID flow.Identifier) (*flow.ExecutionResult, error)
 }
 
 type backend struct {
@@ -132,15 +132,6 @@ func (b *backend) GetBlockHeaderByHeight(_ context.Context, height uint64) (*flo
 	return header, nil
 }
 
-func (b *backend) GetExecutionResultByBlockID(ctx context.Context, blockID flow.Identifier) (*flow.ExecutionResult, error) {
-	er, err := b.executionResults.ByBlockID(blockID)
-	if err != nil {
-		return nil, convertStorageError(err)
-	}
-
-	return er, nil
-}
-
 // GetExecutionResultByID gets an execution result by its ID.
 func (b *backend) GetExecutionResultByID(ctx context.Context, id flow.Identifier) (*flow.ExecutionResult, error) {
 	result, err := b.executionResults.ByID(id)
@@ -149,6 +140,15 @@ func (b *backend) GetExecutionResultByID(ctx context.Context, id flow.Identifier
 	}
 
 	return result, nil
+}
+
+func (b *backend) GetExecutionResultByBlockID(ctx context.Context, blockID flow.Identifier) (*flow.ExecutionResult, error) {
+	executionResult, err := b.executionResults.ByBlockID(blockID)
+	if err != nil {
+		return nil, convertStorageError(err)
+	}
+
+	return executionResult, nil
 }
 
 func convertStorageError(err error) error {
