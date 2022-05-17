@@ -434,7 +434,8 @@ func NewObserverServiceBuilder(builder *FlowObserverServiceBuilder) *FlowObserve
 	// the observer gets a version of the root snapshot file that does not contain any node addresses
 	// hence skip all the root snapshot validations that involved an identity address
 	builder.SkipNwAddressBasedValidations = true
-	return builder
+	ret := *builder
+	return &ret
 }
 
 func (builder *FlowObserverServiceBuilder) initNodeInfo() error {
