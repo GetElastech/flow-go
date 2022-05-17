@@ -571,6 +571,88 @@ func (suite *Suite) TestGetBlockHeaderByHeight_InternalFailure() {
 	suite.Require().ErrorIs(err, OutputInternalErr)
 }
 
+func (suite *Suite) TestGetExecutionResultByID_Success() {
+	blockID := unittest.IdentifierFixture()
+	executionResult := unittest.ExecutionResultFixture(
+		unittest.WithExecutionResultBlockID(blockID))
+
+	ctx := context.Background()
+
+	suite.executionResults.
+		On("ByID", executionResult.ID()).
+		Return(executionResult, nil)
+
+	suite.Run("success retreiving existing execution result id", func() {
+		// create the handler
+		backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
+
+		// execute request
+		responseExecutionResult, err := backend.GetExecutionResultByID(ctx, executionResult.ID())
+		suite.checkResponse(responseExecutionResult, err)
+
+		// make sure we got the correct execution results
+		suite.Require().Equal(executionResult, responseExecutionResult)
+	})
+
+	suite.assertAllExpectations()
+}
+
+func (suite *Suite) TestGetExecutionResultByID_FailureScenarios() {
+	nonexistingID := unittest.IdentifierFixture()
+	blockID := unittest.IdentifierFixture()
+	executionResult := unittest.ExecutionResultFixture(
+		unittest.WithExecutionResultBlockID(blockID))
+
+	secondExecutionResult := unittest.ExecutionResultFixture(
+		unittest.WithExecutionResultBlockID(blockID))
+
+	ctx := context.Background()
+
+	suite.executionResults.
+		On("ByID", nonexistingID).
+		Return(nil, storage.ErrNotFound)
+
+	suite.executionResults.
+		On("ByID", executionResult.ID()).
+		Return(nil, CodesNotFoundErr)
+
+	suite.executionResults.
+		On("ByID", secondExecutionResult.ID()).
+		Return(nil, InternalErr)
+
+	suite.Run("failure retreiving nonexisting execution result for id", func() {
+		// create the handler
+		backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
+
+		// execute request
+		_, err := backend.GetExecutionResultByID(ctx, nonexistingID)
+		suite.Require().Error(err)
+		suite.Require().ErrorIs(err, StorageNotFoundErr)
+	})
+
+	suite.Run("failure retreiving result for id, codes not found", func() {
+		// create the handler
+		backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
+
+		// execute request
+		_, err := backend.GetExecutionResultByID(ctx, executionResult.ID())
+		suite.Require().Error(err)
+		suite.Require().ErrorIs(err, CodesNotFoundErr)
+	})
+
+	suite.Run("failure retreiving result for id, internal error", func() {
+		// create the handler
+		backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
+
+		// execute request
+		_, err := backend.GetExecutionResultByID(ctx, secondExecutionResult.ID())
+		suite.Require().Error(err)
+		suite.Require().ErrorIs(err, OutputInternalErr)
+	})
+
+	suite.assertAllExpectations()
+}
+
 func (suite *Suite) TestGetExecutionResultsByBlockID() {
 
 	nonexistingBlockID := unittest.IdentifierFixture()
