@@ -597,7 +597,7 @@ func (suite *Suite) TestGetExecutionResultByID_Success() {
 	suite.assertAllExpectations()
 }
 
-func (suite *Suite) TestGetExecutionResultByID_FailureScenarios() {
+func (suite *Suite) TestGetExecutionResultByID_Failure() {
 	nonexistingID := unittest.IdentifierFixture()
 	blockID := unittest.IdentifierFixture()
 	executionResult := unittest.ExecutionResultFixture(
@@ -653,9 +653,7 @@ func (suite *Suite) TestGetExecutionResultByID_FailureScenarios() {
 	suite.assertAllExpectations()
 }
 
-func (suite *Suite) TestGetExecutionResultsByBlockID() {
-
-	nonexistingBlockID := unittest.IdentifierFixture()
+func (suite *Suite) TestGetExecutionResultsByBlockID_Success() {
 	blockID := unittest.IdentifierFixture()
 
 	executionResult := unittest.ExecutionResultFixture(
@@ -667,10 +665,6 @@ func (suite *Suite) TestGetExecutionResultsByBlockID() {
 		On("ByBlockID", blockID).
 		Return(executionResult, nil)
 
-	suite.executionResults.
-		On("ByBlockID", nonexistingBlockID).
-		Return(nil, storage.ErrNotFound)
-
 	suite.Run("success retrieving existing execution results", func() {
 
 		// create the handler
@@ -681,17 +675,55 @@ func (suite *Suite) TestGetExecutionResultsByBlockID() {
 
 		// make sure we got the correct execution results
 		suite.Require().Equal(executionResult, responseExecutionResult)
-
 	})
+}
 
-	suite.Run("failure retreiving nonexisting execution results", func() {
+func (suite *Suite) TestGetExecutionResultsByBlockID_Failure() {
+	nonexistingBlockID := unittest.IdentifierFixture()
+	blockID := unittest.IdentifierFixture()
+	secondBlockID := unittest.IdentifierFixture()
 
+	ctx := context.Background()
+
+	suite.executionResults.
+		On("ByBlockID", nonexistingBlockID).
+		Return(nil, storage.ErrNotFound)
+
+	suite.executionResults.
+		On("ByBlockID", blockID).
+		Return(nil, CodesNotFoundErr)
+
+	suite.executionResults.
+		On("ByBlockID", secondBlockID).
+		Return(nil, InternalErr)
+
+	suite.Run("failure retrieving nonexisting execution results", func() {
 		// create the handler
 		backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
 
 		_, err := backend.GetExecutionResultByBlockID(ctx, nonexistingBlockID)
 		suite.Require().Error(err)
 		suite.Require().ErrorIs(err, StorageNotFoundErr)
+	})
+
+	suite.Run("failure retreiving result for id, codes not found", func() {
+		// create the handler
+		backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
+
+		// execute request
+		_, err := backend.GetExecutionResultByBlockID(ctx, blockID)
+		suite.Require().Error(err)
+		suite.Require().ErrorIs(err, CodesNotFoundErr)
+	})
+
+	suite.Run("failure retreiving result for id, internal error", func() {
+		// create the handler
+		backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
+
+		// execute request
+		_, err := backend.GetExecutionResultByBlockID(ctx, secondBlockID)
+		suite.Require().Error(err)
+		suite.Require().ErrorIs(err, OutputInternalErr)
 	})
 
 	suite.assertAllExpectations()
