@@ -602,7 +602,6 @@ func (suite *Suite) TestGetExecutionResultByID_FailureScenarios() {
 	blockID := unittest.IdentifierFixture()
 	executionResult := unittest.ExecutionResultFixture(
 		unittest.WithExecutionResultBlockID(blockID))
-
 	secondExecutionResult := unittest.ExecutionResultFixture(
 		unittest.WithExecutionResultBlockID(blockID))
 
@@ -655,7 +654,6 @@ func (suite *Suite) TestGetExecutionResultByID_FailureScenarios() {
 
 func (suite *Suite) TestGetExecutionResultsByBlockID_Success() {
 	blockID := unittest.IdentifierFixture()
-
 	executionResult := unittest.ExecutionResultFixture(
 		unittest.WithExecutionResultBlockID(blockID))
 
