@@ -116,17 +116,14 @@ func (suite *Suite) TestGetLatestBlock_StorageNotFoundFailure() {
 		Return(header, storage.ErrNotFound).
 		Once()
 
-	suite.blocks.
-		On("ByID", header.ID()).
-		Return(&block, nil).
-		Once()
-
 	backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
 
 	// query the handler for the latest finalized block
 	_, err := backend.GetLatestBlock(context.Background(), false)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, StorageNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetLatestBlock_CodesNotFoundFailure() {
@@ -141,17 +138,14 @@ func (suite *Suite) TestGetLatestBlock_CodesNotFoundFailure() {
 		Return(header, CodesNotFoundErr).
 		Once()
 
-	suite.blocks.
-		On("ByID", header.ID()).
-		Return(&block, nil).
-		Once()
-
 	backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
 
 	// query the handler for the latest finalized block
 	_, err := backend.GetLatestBlock(context.Background(), false)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, CodesNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetLatestBlock_InternalFailure() {
@@ -166,17 +160,14 @@ func (suite *Suite) TestGetLatestBlock_InternalFailure() {
 		Return(header, InternalErr).
 		Once()
 
-	suite.blocks.
-		On("ByID", header.ID()).
-		Return(&block, nil).
-		Once()
-
 	backend := New(suite.state, suite.blocks, suite.headers, suite.executionResults)
 
 	// query the handler for the latest finalized block
 	_, err := backend.GetLatestBlock(context.Background(), false)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, OutputInternalErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockById_Success() {
@@ -215,6 +206,8 @@ func (suite *Suite) TestGetBlockById_StorageNotFoundFailure() {
 	_, err := backend.GetBlockByID(context.Background(), block.ID())
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, StorageNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockById_CodesNotFoundFailure() {
@@ -232,6 +225,8 @@ func (suite *Suite) TestGetBlockById_CodesNotFoundFailure() {
 	_, err := backend.GetBlockByID(context.Background(), block.ID())
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, CodesNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockById_InternalFailure() {
@@ -249,6 +244,8 @@ func (suite *Suite) TestGetBlockById_InternalFailure() {
 	_, err := backend.GetBlockByID(context.Background(), block.ID())
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, OutputInternalErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockByHeight_Success() {
@@ -289,6 +286,8 @@ func (suite *Suite) TestGetBlockByHeight_StorageNotFoundFailure() {
 	_, err := backend.GetBlockByHeight(context.Background(), height)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, StorageNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockByHeight_CodesNotFoundFailure() {
@@ -307,6 +306,8 @@ func (suite *Suite) TestGetBlockByHeight_CodesNotFoundFailure() {
 	_, err := backend.GetBlockByHeight(context.Background(), height)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, CodesNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockByHeight_InternalFailure() {
@@ -325,6 +326,8 @@ func (suite *Suite) TestGetBlockByHeight_InternalFailure() {
 	_, err := backend.GetBlockByHeight(context.Background(), height)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, OutputInternalErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetLatestFinalizedBlockHeader_Success() {
@@ -382,6 +385,8 @@ func (suite *Suite) TestGetLatestBlockHeader_StorageNotFoundFailure() {
 	_, err := backend.GetLatestBlockHeader(context.Background(), false)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, StorageNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetLatestBlockHeader_CodesNotFoundFailure() {
@@ -397,6 +402,8 @@ func (suite *Suite) TestGetLatestBlockHeader_CodesNotFoundFailure() {
 	_, err := backend.GetLatestBlockHeader(context.Background(), false)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, CodesNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetLatestBlockHeader_InternalFailure() {
@@ -412,6 +419,8 @@ func (suite *Suite) TestGetLatestBlockHeader_InternalFailure() {
 	_, err := backend.GetLatestBlockHeader(context.Background(), false)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, OutputInternalErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockHeaderByID_Success() {
@@ -455,6 +464,8 @@ func (suite *Suite) TestGetBlockHeaderByID_StorageNotFoundFailure() {
 	_, err := backend.GetBlockHeaderByID(context.Background(), block.ID())
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, StorageNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockHeaderByID_CodesNotFoundFailure() {
@@ -473,6 +484,8 @@ func (suite *Suite) TestGetBlockHeaderByID_CodesNotFoundFailure() {
 	_, err := backend.GetBlockHeaderByID(context.Background(), block.ID())
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, CodesNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockHeaderByID_InternalFailure() {
@@ -491,6 +504,8 @@ func (suite *Suite) TestGetBlockHeaderByID_InternalFailure() {
 	_, err := backend.GetBlockHeaderByID(context.Background(), block.ID())
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, OutputInternalErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockHeaderByHeight_Success() {
@@ -533,6 +548,8 @@ func (suite *Suite) TestGetBlockHeaderByHeight_StorageNotFoundFailure() {
 	_, err := backend.GetBlockHeaderByHeight(context.Background(), headerHeight)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, StorageNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockHeaderByHeight_CodesNotFoundFailure() {
@@ -551,6 +568,8 @@ func (suite *Suite) TestGetBlockHeaderByHeight_CodesNotFoundFailure() {
 	_, err := backend.GetBlockHeaderByHeight(context.Background(), headerHeight)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, CodesNotFoundErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetBlockHeaderByHeight_InternalFailure() {
@@ -569,6 +588,8 @@ func (suite *Suite) TestGetBlockHeaderByHeight_InternalFailure() {
 	_, err := backend.GetBlockHeaderByHeight(context.Background(), headerHeight)
 	suite.Require().Error(err)
 	suite.Require().ErrorIs(err, OutputInternalErr)
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetExecutionResultByID_Success() {
@@ -674,6 +695,8 @@ func (suite *Suite) TestGetExecutionResultsByBlockID_Success() {
 		// make sure we got the correct execution results
 		suite.Require().Equal(executionResult, responseExecutionResult)
 	})
+
+	suite.assertAllExpectations()
 }
 
 func (suite *Suite) TestGetExecutionResultsByBlockID_FailureScenarios() {
@@ -737,4 +760,5 @@ func (suite *Suite) assertAllExpectations() {
 	suite.state.AssertExpectations(suite.T())
 	suite.blocks.AssertExpectations(suite.T())
 	suite.headers.AssertExpectations(suite.T())
+	suite.executionResults.AssertExpectations(suite.T())
 }
