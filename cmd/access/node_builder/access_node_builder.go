@@ -1,17 +1,14 @@
 package node_builder
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/onflow/flow/protobuf/go/flow/access"
 	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
 
-	"github.com/onflow/flow-go/crypto"
 	"github.com/onflow/flow-go/module/compliance"
 
 	"github.com/onflow/flow-go/cmd"
@@ -29,7 +26,6 @@ import (
 	followereng "github.com/onflow/flow-go/engine/common/follower"
 	"github.com/onflow/flow-go/engine/common/requester"
 	synceng "github.com/onflow/flow-go/engine/common/synchronization"
-	"github.com/onflow/flow-go/model/encodable"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/model/flow/filter"
 	"github.com/onflow/flow-go/module"
@@ -50,40 +46,30 @@ import (
 	storage "github.com/onflow/flow-go/storage/badger"
 )
 
-// AccessNodeBuilder extends cmd.NodeBuilder and declares additional functions needed to bootstrap an Access node
-// These functions are shared by staked and unstaked access node builders.
-// The Staked network allows the staked nodes to communicate among themselves, while the unstaked network allows the
-// unstaked nodes and a staked Access node to communicate.
+// AccessNodeBuilder extends cmd.NodeBuilder and declares additional functions needed to bootstrap an Access node.
+// The Staked network allows the staked nodes to communicate among themselves, while the public network allows the
+// Observers and an Access node to communicate.
 //
-//                                 unstaked network                           staked network
+//                                 public network                           private network
 //  +------------------------+
-//  | Unstaked Access Node 1 |<--------------------------|
+//  | Observer             1 |<--------------------------|
 //  +------------------------+                           v
 //  +------------------------+                         +--------------------+                 +------------------------+
-//  | Unstaked Access Node 2 |<----------------------->| Staked Access Node |<--------------->| All other staked Nodes |
+//  | Observer             2 |<----------------------->| Staked Access Node |<--------------->| All other staked Nodes |
 //  +------------------------+                         +--------------------+                 +------------------------+
 //  +------------------------+                           ^
-//  | Unstaked Access Node 3 |<--------------------------|
+//  | Observer             3 |<--------------------------|
 //  +------------------------+
 
 type AccessNodeBuilder interface {
 	cmd.NodeBuilder
-
-	// IsStaked returns True if this is a staked Access Node, False otherwise
-	IsStaked() bool
 }
 
 // AccessNodeConfig defines all the user defined parameters required to bootstrap an access node
 // For a node running as a standalone process, the config fields will be populated from the command line params,
 // while for a node running as a library, the config fields are expected to be initialized by the caller.
 type AccessNodeConfig struct {
-	staked                       bool
-	bootstrapNodeAddresses       []string
-	bootstrapNodePublicKeys      []string
-	observerNetworkingKeyPath    string
-	bootstrapIdentities          flow.IdentityList // the identity list of bootstrap peers the node uses to discover other nodes
-	NetworkKey                   crypto.PrivateKey // the networking key passed in by the caller when being used as a library
-	supportsUnstakedFollower     bool              // True if this is a staked Access node which also supports unstaked access nodes/unstaked consensus follower engines
+	supportsUnstakedFollower     bool // True if this is a staked Access node which also supports unstaked access nodes/unstaked consensus follower engines
 	collectionGRPCPort           uint
 	executionGRPCPort            uint
 	pingEnabled                  bool
@@ -91,7 +77,6 @@ type AccessNodeConfig struct {
 	apiRatelimits                map[string]int
 	apiBurstlimits               map[string]int
 	rpcConf                      rpc.Config
-	ExecutionNodeAddress         string // deprecated
 	HistoricalAccessRPCs         []access.AccessAPIClient
 	logTxTimeToFinalized         bool
 	logTxTimeToExecuted          bool
@@ -128,7 +113,6 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 			PreferredExecutionNodeIDs: nil,
 			FixedExecutionNodeIDs:     nil,
 		},
-		ExecutionNodeAddress:         "localhost:9000",
 		logTxTimeToFinalized:         false,
 		logTxTimeToExecuted:          false,
 		logTxTimeToFinalizedExecuted: false,
@@ -138,21 +122,17 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 		nodeInfoFile:                 "",
 		apiRatelimits:                nil,
 		apiBurstlimits:               nil,
-		staked:                       true,
-		bootstrapNodeAddresses:       []string{},
-		bootstrapNodePublicKeys:      []string{},
 		supportsUnstakedFollower:     false,
 		PublicNetworkConfig: PublicNetworkConfig{
 			BindAddress: cmd.NotSet,
 			Metrics:     metrics.NewNoopCollector(),
 		},
-		observerNetworkingKeyPath: cmd.NotSet,
 	}
 }
 
-// FlowAccessNodeBuilder provides the common functionality needed to bootstrap a Flow staked and unstaked access node
+// FlowAccessNodeBuilder provides the common functionality needed to bootstrap a Flow access node
 // It is composed of the FlowNodeBuilder, the AccessNodeConfig and contains all the components and modules needed for the
-// staked and unstaked access nodes
+// access nodes
 type FlowAccessNodeBuilder struct {
 	*cmd.FlowNodeBuilder
 	*AccessNodeConfig
@@ -175,9 +155,9 @@ type FlowAccessNodeBuilder struct {
 	Finalized                  *flow.Header
 	Pending                    []*flow.Header
 	FollowerCore               module.HotStuffFollower
-	// for the unstaked access node, the sync engine participants provider is the libp2p peer store which is not
-	// available until after the network has started. Hence, a factory function that needs to be called just before
-	// creating the sync engine
+	// The sync engine participants provider is the libp2p peer store for the observer
+	// which is not available until after the network has started.
+	// Hence, a factory function that needs to be called just before creating the sync engine
 	SyncEngineParticipantsProviderFactory func() id.IdentifierProvider
 
 	// engines
@@ -358,30 +338,6 @@ func (builder *FlowAccessNodeBuilder) BuildConsensusFollower() AccessNodeBuilder
 
 type Option func(*AccessNodeConfig)
 
-func WithBootStrapPeers(bootstrapNodes ...*flow.Identity) Option {
-	return func(config *AccessNodeConfig) {
-		config.bootstrapIdentities = bootstrapNodes
-	}
-}
-
-func SupportsUnstakedNode(enable bool) Option {
-	return func(config *AccessNodeConfig) {
-		config.supportsUnstakedFollower = enable
-	}
-}
-
-func WithNetworkKey(key crypto.PrivateKey) Option {
-	return func(config *AccessNodeConfig) {
-		config.NetworkKey = key
-	}
-}
-
-func WithBaseOptions(baseOptions []cmd.Option) Option {
-	return func(config *AccessNodeConfig) {
-		config.baseOptions = baseOptions
-	}
-}
-
 func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 	config := DefaultAccessNodeConfig()
 	for _, opt := range opts {
@@ -393,9 +349,6 @@ func FlowAccessNode(opts ...Option) *FlowAccessNodeBuilder {
 		FlowNodeBuilder:         cmd.FlowNode(flow.RoleAccess.String(), config.baseOptions...),
 		FinalizationDistributor: pubsub.NewFinalizationDistributor(),
 	}
-}
-func (builder *FlowAccessNodeBuilder) IsStaked() bool {
-	return builder.staked
 }
 
 func (builder *FlowAccessNodeBuilder) ParseFlags() error {
@@ -410,6 +363,9 @@ func (builder *FlowAccessNodeBuilder) ParseFlags() error {
 func (builder *FlowAccessNodeBuilder) extraFlags() {
 	builder.ExtraFlags(func(flags *pflag.FlagSet) {
 		defaultConfig := DefaultAccessNodeConfig()
+		var dummyBool bool
+		var dummyString string
+		var dummyStringSlice []string
 
 		flags.UintVar(&builder.collectionGRPCPort, "collection-ingress-port", defaultConfig.collectionGRPCPort, "the grpc ingress port for all collection nodes")
 		flags.UintVar(&builder.executionGRPCPort, "execution-ingress-port", defaultConfig.executionGRPCPort, "the grpc ingress port for all execution nodes")
@@ -418,7 +374,7 @@ func (builder *FlowAccessNodeBuilder) extraFlags() {
 		flags.StringVarP(&builder.rpcConf.HTTPListenAddr, "http-addr", "h", defaultConfig.rpcConf.HTTPListenAddr, "the address the http proxy server listens on")
 		flags.StringVar(&builder.rpcConf.RESTListenAddr, "rest-addr", defaultConfig.rpcConf.RESTListenAddr, "the address the REST server listens on (if empty the REST server will not be started)")
 		flags.StringVarP(&builder.rpcConf.CollectionAddr, "static-collection-ingress-addr", "", defaultConfig.rpcConf.CollectionAddr, "the address (of the collection node) to send transactions to")
-		flags.StringVarP(&builder.ExecutionNodeAddress, "script-addr", "s", defaultConfig.ExecutionNodeAddress, "the address (of the execution node) forward the script to")
+		flags.StringVarP(&dummyString, "script-addr", "s", "", "deprecated - the address (of the execution node) forward the script to")
 		flags.StringVarP(&builder.rpcConf.HistoricalAccessAddrs, "historical-access-addr", "", defaultConfig.rpcConf.HistoricalAccessAddrs, "comma separated rpc addresses for historical access nodes")
 		flags.DurationVar(&builder.rpcConf.CollectionClientTimeout, "collection-client-timeout", defaultConfig.rpcConf.CollectionClientTimeout, "grpc client timeout for a collection node")
 		flags.DurationVar(&builder.rpcConf.ExecutionClientTimeout, "execution-client-timeout", defaultConfig.rpcConf.ExecutionClientTimeout, "grpc client timeout for an execution node")
@@ -434,10 +390,10 @@ func (builder *FlowAccessNodeBuilder) extraFlags() {
 		flags.StringVarP(&builder.nodeInfoFile, "node-info-file", "", defaultConfig.nodeInfoFile, "full path to a json file which provides more details about nodes when reporting its reachability metrics")
 		flags.StringToIntVar(&builder.apiRatelimits, "api-rate-limits", defaultConfig.apiRatelimits, "per second rate limits for Access API methods e.g. Ping=300,GetTransaction=500 etc.")
 		flags.StringToIntVar(&builder.apiBurstlimits, "api-burst-limits", defaultConfig.apiBurstlimits, "burst limits for Access API methods e.g. Ping=100,GetTransaction=100 etc.")
-		flags.BoolVar(&builder.staked, "staked", defaultConfig.staked, "whether this node is a staked access node or not")
-		flags.StringVar(&builder.observerNetworkingKeyPath, "observer-networking-key-path", defaultConfig.observerNetworkingKeyPath, "path to the networking key for observer")
-		flags.StringSliceVar(&builder.bootstrapNodeAddresses, "bootstrap-node-addresses", defaultConfig.bootstrapNodeAddresses, "the network addresses of the bootstrap access node if this is an unstaked access node e.g. access-001.mainnet.flow.org:9653,access-002.mainnet.flow.org:9653")
-		flags.StringSliceVar(&builder.bootstrapNodePublicKeys, "bootstrap-node-public-keys", defaultConfig.bootstrapNodePublicKeys, "the networking public key of the bootstrap access node if this is an unstaked access node (in the same order as the bootstrap node addresses) e.g. \"d57a5e9c5.....\",\"44ded42d....\"")
+		flags.BoolVar(&dummyBool, "staked", true, "deprecated - whether this node is a staked access node or not")
+		flags.StringVar(&dummyString, "observer-networking-key-path", "", "deprecated - path to the networking key for observer")
+		flags.StringSliceVar(&dummyStringSlice, "bootstrap-node-addresses", []string{}, "deprecated - the network addresses of the bootstrap access node if this is an unstaked access node e.g. access-001.mainnet.flow.org:9653,access-002.mainnet.flow.org:9653")
+		flags.StringSliceVar(&dummyStringSlice, "bootstrap-node-public-keys", []string{}, "deprecated - the networking public key of the bootstrap access node if this is an unstaked access node (in the same order as the bootstrap node addresses) e.g. \"d57a5e9c5.....\",\"44ded42d....\"")
 		flags.BoolVar(&builder.supportsUnstakedFollower, "supports-unstaked-node", defaultConfig.supportsUnstakedFollower, "true if this staked access node supports unstaked node")
 		flags.StringVar(&builder.PublicNetworkConfig.BindAddress, "public-network-address", defaultConfig.PublicNetworkConfig.BindAddress, "staked access node's public network bind address")
 	}).ValidateFlags(func() error {
@@ -480,7 +436,7 @@ func (builder *FlowAccessNodeBuilder) initNetwork(nodeID module.Local,
 	return net, nil
 }
 
-func unstakedNetworkMsgValidators(log zerolog.Logger, idProvider id.IdentityProvider, selfID flow.Identifier) []network.MessageValidator {
+func publicNetworkMsgValidators(log zerolog.Logger, idProvider id.IdentityProvider, selfID flow.Identifier) []network.MessageValidator {
 	return []network.MessageValidator{
 		// filter out messages sent by this node itself
 		validator.ValidateNotSender(selfID),
@@ -493,41 +449,4 @@ func unstakedNetworkMsgValidators(log zerolog.Logger, idProvider id.IdentityProv
 			validator.ValidateTarget(log, selfID),
 		),
 	}
-}
-
-// BootstrapIdentities converts the bootstrap node addresses and keys to a Flow Identity list where
-// each Flow Identity is initialized with the passed address, the networking key
-// and the Node ID set to ZeroID, role set to Access, 0 stake and no staking key.
-func BootstrapIdentities(addresses []string, keys []string) (flow.IdentityList, error) {
-
-	if len(addresses) != len(keys) {
-		return nil, fmt.Errorf("number of addresses and keys provided for the boostrap nodes don't match")
-	}
-
-	ids := make([]*flow.Identity, len(addresses))
-	for i, address := range addresses {
-		key := keys[i]
-
-		// json unmarshaller needs a quotes before and after the string
-		// the pflags.StringSliceVar does not retain quotes for the command line arg even if escaped with \"
-		// hence this additional check to ensure the key is indeed quoted
-		if !strings.HasPrefix(key, "\"") {
-			key = fmt.Sprintf("\"%s\"", key)
-		}
-		// networking public key
-		var networkKey encodable.NetworkPubKey
-		err := json.Unmarshal([]byte(key), &networkKey)
-		if err != nil {
-			return nil, err
-		}
-
-		// create the identity of the peer by setting only the relevant fields
-		ids[i] = &flow.Identity{
-			NodeID:        flow.ZeroID, // the NodeID is the hash of the staking key and for the unstaked network it does not apply
-			Address:       address,
-			Role:          flow.RoleAccess, // the upstream node has to be an access node
-			NetworkPubKey: networkKey,
-		}
-	}
-	return ids, nil
 }

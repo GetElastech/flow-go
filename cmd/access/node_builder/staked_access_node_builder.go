@@ -39,8 +39,8 @@ import (
 	"github.com/onflow/flow-go/utils/grpcutils"
 )
 
-// StakedAccessNodeBuilder builds a staked access node. The staked access node can optionally participate in the
-// unstaked network publishing data for the unstaked access node downstream.
+// StakedAccessNodeBuilder builds a staked access node.
+// The access node can optionally participate in the public network publishing data for the observers downstream.
 type StakedAccessNodeBuilder struct {
 	*FlowAccessNodeBuilder
 }
@@ -85,9 +85,9 @@ func (builder *StakedAccessNodeBuilder) Initialize() error {
 	// enqueue the regular network
 	builder.EnqueueNetworkInit()
 
-	// if this is an access node that supports unstaked followers, enqueue the unstaked network
+	// if this is an access node that supports followers, enqueue the public network
 	if builder.supportsUnstakedFollower {
-		builder.enqueueUnstakedNetworkInit()
+		builder.enqueuePublicNetworkInit()
 		builder.enqueueRelayNetwork()
 	}
 
@@ -301,14 +301,15 @@ func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
 	return builder.FlowAccessNodeBuilder.Build()
 }
 
-// enqueueUnstakedNetworkInit enqueues the unstaked network component initialized for the staked node
-func (builder *StakedAccessNodeBuilder) enqueueUnstakedNetworkInit() {
+// enqueuePublicNetworkInit enqueues the public network component initialized for the staked access node
+// Observers can connect to the public port to access staked features without affecting the system load much.
+func (builder *StakedAccessNodeBuilder) enqueuePublicNetworkInit() {
 	builder.Component("unstaked network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		builder.PublicNetworkConfig.Metrics = metrics.NewNetworkCollector(metrics.WithNetworkPrefix("unstaked"))
 
 		libP2PFactory := builder.initLibP2PFactory(builder.NodeConfig.NetworkKey)
 
-		msgValidators := unstakedNetworkMsgValidators(node.Logger.With().Bool("unstaked", true).Logger(), node.IdentityProvider, builder.NodeID)
+		msgValidators := publicNetworkMsgValidators(node.Logger.With().Bool("unstaked", true).Logger(), node.IdentityProvider, builder.NodeID)
 
 		middleware := builder.initMiddleware(builder.NodeID, builder.PublicNetworkConfig.Metrics, libP2PFactory, msgValidators...)
 
@@ -383,7 +384,7 @@ func (builder *StakedAccessNodeBuilder) initMiddleware(nodeID flow.Identifier,
 	factoryFunc p2p.LibP2PFactoryFunc,
 	validators ...network.MessageValidator) network.Middleware {
 
-	// disable connection pruning for the staked AN which supports the unstaked AN
+	// disable connection pruning for the AN which supports the observer
 	peerManagerFactory := p2p.PeerManagerFactory([]p2p.Option{p2p.WithInterval(builder.PeerUpdateInterval)}, p2p.WithConnectionPruning(false))
 
 	builder.Middleware = p2p.NewMiddleware(
