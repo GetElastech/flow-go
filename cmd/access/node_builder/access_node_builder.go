@@ -47,7 +47,7 @@ import (
 )
 
 // AccessNodeBuilder extends cmd.NodeBuilder and declares additional functions needed to bootstrap an Access node.
-// The Staked network allows the staked nodes to communicate among themselves, while the public network allows the
+// The private network allows the staked nodes to communicate among themselves, while the public network allows the
 // Observers and an Access node to communicate.
 //
 //                                 public network                           private network

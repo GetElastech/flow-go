@@ -39,19 +39,19 @@ import (
 	"github.com/onflow/flow-go/utils/grpcutils"
 )
 
-// StakedAccessNodeBuilder builds a staked access node.
+// accessNodeBuilder builds a staked access node.
 // The access node can optionally participate in the public network publishing data for the observers downstream.
-type StakedAccessNodeBuilder struct {
+type accessNodeBuilder struct {
 	*FlowAccessNodeBuilder
 }
 
-func NewStakedAccessNodeBuilder(builder *FlowAccessNodeBuilder) *StakedAccessNodeBuilder {
-	return &StakedAccessNodeBuilder{
+func NewAccessNodeBuilder(builder *FlowAccessNodeBuilder) *accessNodeBuilder {
+	return &accessNodeBuilder{
 		FlowAccessNodeBuilder: builder,
 	}
 }
 
-func (builder *StakedAccessNodeBuilder) InitIDProviders() {
+func (builder *accessNodeBuilder) InitIDProviders() {
 	builder.Module("id providers", func(node *cmd.NodeConfig) error {
 		idCache, err := p2p.NewProtocolStateIDCache(node.Logger, node.State, node.ProtocolEvents)
 		if err != nil {
@@ -77,7 +77,7 @@ func (builder *StakedAccessNodeBuilder) InitIDProviders() {
 	})
 }
 
-func (builder *StakedAccessNodeBuilder) Initialize() error {
+func (builder *accessNodeBuilder) Initialize() error {
 	builder.InitIDProviders()
 
 	builder.EnqueueResolver()
@@ -104,7 +104,7 @@ func (builder *StakedAccessNodeBuilder) Initialize() error {
 	return nil
 }
 
-func (builder *StakedAccessNodeBuilder) enqueueRelayNetwork() {
+func (builder *accessNodeBuilder) enqueueRelayNetwork() {
 	builder.Component("relay network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		relayNet := relaynet.NewRelayNetwork(
 			node.Network,
@@ -117,7 +117,7 @@ func (builder *StakedAccessNodeBuilder) enqueueRelayNetwork() {
 	})
 }
 
-func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
+func (builder *accessNodeBuilder) Build() (cmd.Node, error) {
 	builder.
 		BuildConsensusFollower().
 		Module("collection node client", func(node *cmd.NodeConfig) error {
@@ -301,9 +301,9 @@ func (builder *StakedAccessNodeBuilder) Build() (cmd.Node, error) {
 	return builder.FlowAccessNodeBuilder.Build()
 }
 
-// enqueuePublicNetworkInit enqueues the public network component initialized for the staked access node
-// Observers can connect to the public port to access staked features without affecting the system load much.
-func (builder *StakedAccessNodeBuilder) enqueuePublicNetworkInit() {
+// enqueuePublicNetworkInit enqueues the public network component initialized for the access node
+// Observers can connect to the public port to access features without affecting the system load much.
+func (builder *accessNodeBuilder) enqueuePublicNetworkInit() {
 	builder.Component("unstaked network", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
 		builder.PublicNetworkConfig.Metrics = metrics.NewNetworkCollector(metrics.WithNetworkPrefix("unstaked"))
 
@@ -349,7 +349,7 @@ func (builder *StakedAccessNodeBuilder) enqueuePublicNetworkInit() {
 // 		The passed in private key as the libp2p key
 //		No connection gater
 // 		Default Flow libp2p pubsub options
-func (builder *StakedAccessNodeBuilder) initLibP2PFactory(networkKey crypto.PrivateKey) p2p.LibP2PFactoryFunc {
+func (builder *accessNodeBuilder) initLibP2PFactory(networkKey crypto.PrivateKey) p2p.LibP2PFactoryFunc {
 	return func(ctx context.Context) (*p2p.Node, error) {
 		connManager := p2p.NewConnManager(builder.Logger, builder.PublicNetworkConfig.Metrics)
 
@@ -379,7 +379,7 @@ func (builder *StakedAccessNodeBuilder) initLibP2PFactory(networkKey crypto.Priv
 
 // initMiddleware creates the network.Middleware implementation with the libp2p factory function, metrics, peer update
 // interval, and validators. The network.Middleware is then passed into the initNetwork function.
-func (builder *StakedAccessNodeBuilder) initMiddleware(nodeID flow.Identifier,
+func (builder *accessNodeBuilder) initMiddleware(nodeID flow.Identifier,
 	networkMetrics module.NetworkMetrics,
 	factoryFunc p2p.LibP2PFactoryFunc,
 	validators ...network.MessageValidator) network.Middleware {

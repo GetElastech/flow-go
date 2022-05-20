@@ -15,7 +15,7 @@ func main() {
 	}
 
 	// Please use an observer for unstaked workloads going forward
-	builder := nodebuilder.NewStakedAccessNodeBuilder(anb)
+	builder := nodebuilder.NewAccessNodeBuilder(anb)
 
 	if err := builder.Initialize(); err != nil {
 		anb.Logger.Fatal().Err(err).Send()
