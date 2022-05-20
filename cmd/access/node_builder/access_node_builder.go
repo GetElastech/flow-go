@@ -69,7 +69,7 @@ type AccessNodeBuilder interface {
 // For a node running as a standalone process, the config fields will be populated from the command line params,
 // while for a node running as a library, the config fields are expected to be initialized by the caller.
 type AccessNodeConfig struct {
-	supportsUnstakedFollower     bool // True if this is a staked Access node which also supports unstaked access nodes/unstaked consensus follower engines
+	supportsObserverAndFollower  bool // True if this is an Access node that supports observers and consensus follower engines
 	collectionGRPCPort           uint
 	executionGRPCPort            uint
 	pingEnabled                  bool
@@ -122,7 +122,7 @@ func DefaultAccessNodeConfig() *AccessNodeConfig {
 		nodeInfoFile:                 "",
 		apiRatelimits:                nil,
 		apiBurstlimits:               nil,
-		supportsUnstakedFollower:     false,
+		supportsObserverAndFollower:  false,
 		PublicNetworkConfig: PublicNetworkConfig{
 			BindAddress: cmd.NotSet,
 			Metrics:     metrics.NewNoopCollector(),
@@ -394,10 +394,10 @@ func (builder *FlowAccessNodeBuilder) extraFlags() {
 		flags.StringVar(&dummyString, "observer-networking-key-path", "", "deprecated - path to the networking key for observer")
 		flags.StringSliceVar(&dummyStringSlice, "bootstrap-node-addresses", []string{}, "deprecated - the network addresses of the bootstrap access node if this is an unstaked access node e.g. access-001.mainnet.flow.org:9653,access-002.mainnet.flow.org:9653")
 		flags.StringSliceVar(&dummyStringSlice, "bootstrap-node-public-keys", []string{}, "deprecated - the networking public key of the bootstrap access node if this is an unstaked access node (in the same order as the bootstrap node addresses) e.g. \"d57a5e9c5.....\",\"44ded42d....\"")
-		flags.BoolVar(&builder.supportsUnstakedFollower, "supports-unstaked-node", defaultConfig.supportsUnstakedFollower, "true if this staked access node supports unstaked node")
+		flags.BoolVar(&builder.supportsObserverAndFollower, "supports-unstaked-node", defaultConfig.supportsObserverAndFollower, "true if this staked access node supports observer or follower connections")
 		flags.StringVar(&builder.PublicNetworkConfig.BindAddress, "public-network-address", defaultConfig.PublicNetworkConfig.BindAddress, "staked access node's public network bind address")
 	}).ValidateFlags(func() error {
-		if builder.supportsUnstakedFollower && (builder.PublicNetworkConfig.BindAddress == cmd.NotSet || builder.PublicNetworkConfig.BindAddress == "") {
+		if builder.supportsObserverAndFollower && (builder.PublicNetworkConfig.BindAddress == cmd.NotSet || builder.PublicNetworkConfig.BindAddress == "") {
 			return errors.New("public-network-address must be set if supports-unstaked-node is true")
 		}
 
@@ -441,7 +441,7 @@ func publicNetworkMsgValidators(log zerolog.Logger, idProvider id.IdentityProvid
 		// filter out messages sent by this node itself
 		validator.ValidateNotSender(selfID),
 		validator.NewAnyValidator(
-			// message should be either from a valid staked node
+			// message should be from a valid staked node
 			validator.NewOriginValidator(
 				id.NewIdentityFilterIdentifierProvider(filter.IsValidCurrentEpochParticipant, idProvider),
 			),
