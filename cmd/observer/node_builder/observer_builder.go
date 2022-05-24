@@ -98,6 +98,9 @@ type ObserverServiceConfig struct {
 	rpcMetricsEnabled         bool
 	baseOptions               []cmd.Option
 	apiTimeout                time.Duration
+	upstreamNodeAddresses     []string
+	upstreamNodePublicKeys    []string
+	upstreamIdentities        flow.IdentityList // the identity list of upstream peers the node uses to forward API requests to
 }
 
 // DefaultObserverServiceConfig defines all the default values for the ObserverServiceConfig
@@ -123,6 +126,8 @@ func DefaultObserverServiceConfig() *ObserverServiceConfig {
 		bootstrapNodePublicKeys:   []string{},
 		observerNetworkingKeyPath: cmd.NotSet,
 		apiTimeout:                3 * time.Second,
+		upstreamNodeAddresses:     []string{},
+		upstreamNodePublicKeys:    []string{},
 	}
 }
 
@@ -171,6 +176,25 @@ func (builder *ObserverServiceBuilder) deriveBootstrapPeerIdentities() error {
 	}
 
 	builder.bootstrapIdentities = ids
+
+	return nil
+}
+
+// deriveBootstrapPeerIdentities derives the Flow Identity of the bootstrap peers from the parameters.
+// These are the identities of the observers also acting as the DHT bootstrap server
+func (builder *ObserverServiceBuilder) deriveUpstreamPeerIdentities() error {
+	// if bootstrap identities already provided (as part of alternate initialization as a library the skip reading command
+	// line params)
+	if builder.upstreamIdentities != nil {
+		return nil
+	}
+
+	ids, err := BootstrapIdentities(builder.upstreamNodeAddresses, builder.upstreamNodePublicKeys)
+	if err != nil {
+		return fmt.Errorf("failed to derive upstream peer identities: %w", err)
+	}
+
+	builder.upstreamIdentities = ids
 
 	return nil
 }
@@ -402,6 +426,8 @@ func (builder *ObserverServiceBuilder) extraFlags() {
 		flags.StringSliceVar(&builder.bootstrapNodePublicKeys, "bootstrap-node-public-keys", defaultConfig.bootstrapNodePublicKeys, "the networking public key of the bootstrap access node if this is an observer (in the same order as the bootstrap node addresses) e.g. \"d57a5e9c5.....\",\"44ded42d....\"")
 		flags.StringVar(&dummyString, "public-network-address", "", "deprecated - access node's public network bind address")
 		flags.DurationVar(&builder.apiTimeout, "flow-api-timeout", defaultConfig.apiTimeout, "tcp timeout for Flow API gRPC socket")
+		flags.StringSliceVar(&builder.upstreamNodeAddresses, "upstream-node-addresses", defaultConfig.bootstrapNodeAddresses, "the network addresses of the bootstrap access node if this is an observer e.g. access-001.mainnet.flow.org:9653,access-002.mainnet.flow.org:9653")
+		flags.StringSliceVar(&builder.upstreamNodePublicKeys, "upstream-node-public-keys", defaultConfig.bootstrapNodePublicKeys, "the networking public key of the bootstrap access node if this is an observer (in the same order as the bootstrap node addresses) e.g. \"d57a5e9c5.....\",\"44ded42d....\"")
 	}).ValidateFlags(func() error {
 		return nil
 	})
@@ -569,6 +595,10 @@ func (builder *ObserverServiceBuilder) Initialize() error {
 		return err
 	}
 
+	if err := builder.deriveUpstreamPeerIdentities(); err != nil {
+		return err
+	}
+
 	if err := builder.validateParams(); err != nil {
 		return err
 	}
@@ -614,6 +644,9 @@ func (builder *ObserverServiceBuilder) validateParams() error {
 	}
 	if len(builder.bootstrapNodeAddresses) != len(builder.bootstrapNodePublicKeys) {
 		return errors.New("number of bootstrap node addresses and public keys should match")
+	}
+	if len(builder.upstreamNodeAddresses) != len(builder.upstreamIdentities) {
+		return errors.New("number of upstream node addresses and public keys should match")
 	}
 	return nil
 }
@@ -766,7 +799,11 @@ func (builder *ObserverServiceBuilder) enqueueConnectWithStakedAN() {
 
 func (builder *ObserverServiceBuilder) attachRPCEngine() {
 	builder.Component("RPC engine", func(node *cmd.NodeConfig) (module.ReadyDoneAware, error) {
-		proxy, err := apiservice.NewFlowAPIService(builder.bootstrapIdentities, builder.apiTimeout)
+		ids := builder.upstreamIdentities
+		if len(ids) == 0 {
+			ids = builder.bootstrapIdentities
+		}
+		proxy, err := apiservice.NewFlowAPIService(ids, builder.apiTimeout)
 		if err != nil {
 			return nil, err
 		}
