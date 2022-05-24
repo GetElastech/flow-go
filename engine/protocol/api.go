@@ -36,28 +36,16 @@ func New(
 	headers storage.Headers,
 	executionResults storage.ExecutionResults,
 ) API {
-	b := &backend{
-
+	return &backend{
 		headers:          headers,
 		blocks:           blocks,
 		state:            state,
 		executionResults: executionResults,
 	}
-	return b
 }
 
 func (b *backend) GetLatestBlock(_ context.Context, isSealed bool) (*flow.Block, error) {
-	var header *flow.Header
-	var err error
-
-	if isSealed {
-		// get the latest seal header from storage
-		header, err = b.state.Sealed().Head()
-	} else {
-		// get the finalized header from state
-		header, err = b.state.Final().Head()
-	}
-
+	header, err := b.getLatestHeader(isSealed)
 	if err != nil {
 		err = convertStorageError(err)
 		return nil, err
@@ -93,17 +81,7 @@ func (b *backend) GetBlockByHeight(_ context.Context, height uint64) (*flow.Bloc
 }
 
 func (b *backend) GetLatestBlockHeader(_ context.Context, isSealed bool) (*flow.Header, error) {
-	var header *flow.Header
-	var err error
-
-	if isSealed {
-		// get the latest seal header from storage
-		header, err = b.state.Sealed().Head()
-	} else {
-		// get the finalized header from state
-		header, err = b.state.Final().Head()
-	}
-
+	header, err := b.getLatestHeader(isSealed)
 	if err != nil {
 		err = convertStorageError(err)
 		return nil, err
@@ -149,6 +127,21 @@ func (b *backend) GetExecutionResultByBlockID(ctx context.Context, blockID flow.
 	}
 
 	return executionResult, nil
+}
+
+func (b *backend) getLatestHeader(isSealed bool) (*flow.Header, error) {
+	var header *flow.Header
+	var err error
+
+	if isSealed {
+		// get the latest seal header from storage
+		header, err = b.state.Sealed().Head()
+		return header, err
+	} else {
+		// get the finalized header from state
+		header, err = b.state.Final().Head()
+		return header, err
+	}
 }
 
 func convertStorageError(err error) error {
