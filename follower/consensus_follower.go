@@ -108,7 +108,7 @@ func bootstrapIdentities(bootstrapNodes []BootstrapNodeInfo) flow.IdentityList {
 	return ids
 }
 
-func getAccessNodeOptions(config *Config) []FollowerOption {
+func getFollowerServiceOptions(config *Config) []FollowerOption {
 	ids := bootstrapIdentities(config.bootstrapNodes)
 	return []FollowerOption{
 		WithBootStrapPeers(ids...),
@@ -147,8 +147,8 @@ func getBaseOptions(config *Config) []cmd.Option {
 	return options
 }
 
-func buildObserver(accessNodeOptions []FollowerOption) (*ObserverServiceBuilder, error) {
-	anb := FlowObserverService(accessNodeOptions...)
+func buildConsensusFollower(accessNodeOptions []FollowerOption) (*FollowerServiceBuilder, error) {
+	anb := FlowConsensusFollowerService(accessNodeOptions...)
 	nodeBuilder := WithSkipValidations(anb)
 
 	if err := nodeBuilder.Initialize(); err != nil {
@@ -185,8 +185,8 @@ func NewConsensusFollower(
 		opt(config)
 	}
 
-	accessNodeOptions := getAccessNodeOptions(config)
-	anb, err := buildObserver(accessNodeOptions)
+	accessNodeOptions := getFollowerServiceOptions(config)
+	anb, err := buildConsensusFollower(accessNodeOptions)
 	if err != nil {
 		return nil, err
 	}
