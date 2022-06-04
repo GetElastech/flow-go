@@ -501,7 +501,6 @@ func prepareAccessService(container testnet.ContainerConfig, i int, n int) Servi
 		fmt.Sprintf("--secure-rpc-addr=%s:%d", container.ContainerName, SecuredRPCPort),
 		fmt.Sprintf("--http-addr=%s:%d", container.ContainerName, HTTPPort),
 		fmt.Sprintf("--collection-ingress-port=%d", RPCPort),
-		"--supports-unstaked-node=true",
 		fmt.Sprintf("--public-network-address=%s:%d", container.ContainerName, AccessPubNetworkPort),
 		"--log-tx-time-to-finalized",
 		"--log-tx-time-to-executed",
