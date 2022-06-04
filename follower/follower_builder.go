@@ -73,10 +73,6 @@ import (
 //  | observer 3             |<--------------------------|
 //  +------------------------+
 
-type FlowBuilder interface {
-	cmd.NodeBuilder
-}
-
 // ObserverServiceConfig defines all the user defined parameters required to bootstrap an access node
 // For a node running as a standalone process, the config fields will be populated from the command line params,
 // while for a node running as a library, the config fields are expected to be initialized by the caller.
@@ -299,7 +295,7 @@ func (builder *ObserverServiceBuilder) buildSyncEngine() *ObserverServiceBuilder
 	return builder
 }
 
-func (builder *ObserverServiceBuilder) BuildConsensusFollower() FlowBuilder {
+func (builder *ObserverServiceBuilder) BuildConsensusFollower() cmd.NodeBuilder {
 	builder.
 		buildFollowerState().
 		buildSyncCore().
