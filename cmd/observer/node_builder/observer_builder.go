@@ -12,6 +12,7 @@ import (
 	"time"
 
 	badger "github.com/ipfs/go-ds-badger2"
+
 	"github.com/onflow/flow-go/model/encoding/cbor"
 
 	"github.com/libp2p/go-libp2p-core/host"
@@ -19,6 +20,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	p2ppubsub "github.com/libp2p/go-libp2p-pubsub"
+
 	"github.com/onflow/flow-go/apiservice"
 	"github.com/onflow/flow-go/engine"
 	"github.com/onflow/flow-go/module/local"
