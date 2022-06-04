@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	upstream "github.com/onflow/flow-go/module/upstream"
 	"strings"
 
 	"github.com/libp2p/go-libp2p-core/host"
@@ -19,8 +20,6 @@ import (
 	"github.com/onflow/flow-go/network/p2p/keyutils"
 	"github.com/onflow/flow-go/network/p2p/unicast"
 	"github.com/onflow/flow-go/state/protocol/events/gadgets"
-	upstream "github.com/onflow/flow-go/upstream"
-
 	"github.com/rs/zerolog"
 
 	"github.com/onflow/flow-go/crypto"
@@ -72,10 +71,6 @@ import (
 //  +------------------------+                           ^
 //  | observer 3             |<--------------------------|
 //  +------------------------+
-
-type FlowBuilder interface {
-	cmd.NodeBuilder
-}
 
 // ObserverServiceConfig defines all the user defined parameters required to bootstrap an access node
 // For a node running as a standalone process, the config fields will be populated from the command line params,
@@ -299,7 +294,7 @@ func (builder *ObserverServiceBuilder) buildSyncEngine() *ObserverServiceBuilder
 	return builder
 }
 
-func (builder *ObserverServiceBuilder) BuildConsensusFollower() FlowBuilder {
+func (builder *ObserverServiceBuilder) BuildConsensusFollower() cmd.NodeBuilder {
 	builder.
 		buildFollowerState().
 		buildSyncCore().
