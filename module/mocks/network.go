@@ -5,11 +5,12 @@
 package mocks
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/onflow/flow-go/crypto"
 	hash "github.com/onflow/flow-go/crypto/hash"
 	flow "github.com/onflow/flow-go/model/flow"
-	reflect "reflect"
 )
 
 // MockLocal is a mock of Local interface

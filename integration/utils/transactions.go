@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-core-contracts/lib/go/templates"
 	fttemplates "github.com/onflow/flow-ft/lib/go/templates"
