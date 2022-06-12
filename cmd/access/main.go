@@ -14,13 +14,14 @@ func main() {
 		builder.Logger.Fatal().Err(err).Send()
 	}
 
-	if err := builder.Initialize(); err != nil {
-		builder.Logger.Fatal().Err(err).Send()
+	builder2 := builder
+	if err := builder2.Initialize(); err != nil {
+		builder2.Logger.Fatal().Err(err).Send()
 	}
 
-	node, err := builder.Build()
+	node, err := builder2.Build()
 	if err != nil {
-		builder.Logger.Fatal().Err(err).Send()
+		builder2.Logger.Fatal().Err(err).Send()
 	}
 	node.Run()
 }
