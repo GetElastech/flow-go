@@ -127,7 +127,7 @@ jobs:
     - name: Build relic and other tools
       run: make install-tools
     - name: Install Flow Client
-      run: curl -L https://github.com/onflow/flow-cli/archive/refs/tags/v0.34.0.tar.gz | tar -xzv && cd flow-cli-0.34.0 && make && ./cmd/flow/flow version
+      run: curl -L https://github.com/onflow/flow-cli/archive/refs/tags/v0.34.0.tar.gz | tar -xzv && mkdir gopath && cd flow-cli-0.34.0 && GOPATH=../gopath make && ./cmd/flow/flow version
       # run: sh -ci "$(curl -fsSL https://storage.googleapis.com/flow-cli/install.sh)"
     - name: Set up Localnet
       run: bash -c 'cd integration/localnet/ && make -e OBSERVER=1 init && make start'
