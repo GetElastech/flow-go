@@ -127,7 +127,8 @@ jobs:
     - name: Build relic and other tools
       run: make install-tools
     - name: Install Flow Client
-      run: sh -ci "$(curl -fsSL https://storage.googleapis.com/flow-cli/install.sh)"
+      run: curl -L https://github.com/onflow/flow-cli/archive/refs/tags/v0.34.0.tar.gz | tar -xzv && cd flow-cli-0.34.0 && make && mkdir -p ~/.local/bin && cp ./cmd/flow/flow ~/.local/bin
+      # run: sh -ci "$(curl -fsSL https://storage.googleapis.com/flow-cli/install.sh)"
     - name: Set up Localnet
       run: bash -c 'cd integration/localnet/ && make -e OBSERVER=1 init && make start'
     - name: Ensure Observer is started
@@ -139,8 +140,7 @@ jobs:
       # The waiting time is a reasonable time to expect an observer to be responsive
       run: sleep 20
     - name: Get Status ensuring the observer endpoint is online
-      run: docker run --rm --network host -v $PWD/integration/localnet/flow-localnet.json:/tmp/a.json schmiedent/flowcli flow -f /tmp/a.json -n observer blocks get latest
-      # run: ~/.local/bin/flow -f integration/localnet/flow-localnet.json -n observer status -o json | grep '"status":"ONLINE"'
+      run: ~/.local/bin/flow -f integration/localnet/flow-localnet.json -n observer status -o json | grep '"status":"ONLINE"'
     - name: Wait for finalized blocks and check them
       run: ~/.local/bin/flow -f integration/localnet/flow-localnet.json -n observer blocks get latest
     - name: Wait for finalized blocks and check them with Observer
