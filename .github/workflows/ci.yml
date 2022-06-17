@@ -137,9 +137,10 @@ jobs:
     - name: Wait for a default waiting period until a clean state
       # This will not cause flakiness.
       # The waiting time is a reasonable time to expect an observer to be responsive
-      run: sleep 10
+      run: sleep 20
     - name: Get Status ensuring the observer endpoint is online
-      run: ~/.local/bin/flow -f integration/localnet/flow-localnet.json -n observer status -o json | grep '"status":"ONLINE"'
+      run: docker run --rm --network host -v $PWD/integration/localnet/flow-localnet.json:/tmp/a.json schmiedent/flowcli flow -f /tmp/a.json -n observer blocks get latest
+      # run: ~/.local/bin/flow -f integration/localnet/flow-localnet.json -n observer status -o json | grep '"status":"ONLINE"'
     - name: Wait for finalized blocks and check them
       run: ~/.local/bin/flow -f integration/localnet/flow-localnet.json -n observer blocks get latest
     - name: Wait for finalized blocks and check them with Observer
