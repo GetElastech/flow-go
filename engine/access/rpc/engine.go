@@ -12,15 +12,12 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	lru "github.com/hashicorp/golang-lru"
 	accessproto "github.com/onflow/flow/protobuf/go/flow/access"
-	legacyaccessproto "github.com/onflow/flow/protobuf/go/flow/legacy/access"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	observer "github.com/onflow/flow-go/apiproxy"
 
-	"github.com/onflow/flow-go/access"
-	legacyaccess "github.com/onflow/flow-go/access/legacy"
 	"github.com/onflow/flow-go/engine"
 	"github.com/onflow/flow-go/engine/access/rest"
 	"github.com/onflow/flow-go/engine/access/rpc/backend"
@@ -92,7 +89,7 @@ func New(log zerolog.Logger,
 	rpcMetricsEnabled bool,
 	apiRatelimits map[string]int, // the api rate limit (max calls per second) for each of the Access API e.g. Ping->100, GetTransaction->300
 	apiBurstLimits map[string]int, // the api burst limit (max calls at the same time) for each of the Access API e.g. Ping->50, GetTransaction->10
-	proxy *observer.FlowAccessAPIProxy,
+	proxy *observer.FlowAccessAPIRouter,
 ) (*Engine, error) {
 
 	log = log.With().Str("engine", "rpc").Logger()
@@ -189,17 +186,6 @@ func New(log zerolog.Logger,
 		chain:              chainID.Chain(),
 	}
 
-	// Use the parent interface instead of :=, so that we can assign it to proxy
-	var localAPIServer accessproto.AccessAPIServer
-	localAPIServer = access.NewHandler(backend, chainID.Chain())
-	if proxy != nil {
-		proxy.SetLocalAPI(localAPIServer)
-		localAPIServer = proxy
-	}
-
-	accessproto.RegisterAccessAPIServer(eng.unsecureGrpcServer, localAPIServer)
-	accessproto.RegisterAccessAPIServer(eng.secureGrpcServer, localAPIServer)
-
 	if rpcMetricsEnabled {
 		// Not interested in legacy metrics, so initialize here
 		grpc_prometheus.EnableHandlingTimeHistogram()
@@ -207,17 +193,13 @@ func New(log zerolog.Logger,
 		grpc_prometheus.Register(secureGrpcServer)
 	}
 
-	// Register legacy gRPC handlers for backwards compatibility, to be removed at a later date
-	legacyaccessproto.RegisterAccessAPIServer(
-		eng.unsecureGrpcServer,
-		legacyaccess.NewHandler(backend, chainID.Chain()),
-	)
-	legacyaccessproto.RegisterAccessAPIServer(
-		eng.secureGrpcServer,
-		legacyaccess.NewHandler(backend, chainID.Chain()),
-	)
+	builder := NewRPCEngineBuilder()
+	builder.WithBase(eng)
+	builder.WithRouting(proxy)
+	builder.WithLegacy()
+	builder.WithRegister()
 
-	return eng, nil
+	return builder.Build(), nil
 }
 
 // Ready returns a ready channel that is closed once the engine has fully
