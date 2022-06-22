@@ -5,9 +5,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-
 	sdk "github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go/integration/tests/lib"
 	"github.com/onflow/flow-go/ledger"
@@ -17,6 +14,8 @@ import (
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/model/messages"
 	"github.com/onflow/flow-go/network"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 func TestExecutionChunkDataPacks(t *testing.T) {
