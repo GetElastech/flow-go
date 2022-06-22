@@ -5,9 +5,10 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/atomic"
+
 	flowsdk "github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
-	"go.uber.org/atomic"
 
 	"github.com/rs/zerolog"
 )
