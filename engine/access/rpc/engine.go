@@ -19,6 +19,7 @@ import (
 	"github.com/onflow/flow-go/engine"
 	"github.com/onflow/flow-go/engine/access/rest"
 	"github.com/onflow/flow-go/engine/access/rpc/backend"
+	"github.com/onflow/flow-go/engine/common/rpc"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/module"
 	"github.com/onflow/flow-go/state/protocol"
@@ -109,7 +110,7 @@ func NewBuilder(log zerolog.Logger,
 
 	if len(apiRatelimits) > 0 {
 		// create a rate limit interceptor
-		rateLimitInterceptor := NewRateLimiterInterceptor(log, apiRatelimits, apiBurstLimits).unaryServerInterceptor
+		rateLimitInterceptor := rpc.NewRateLimiterInterceptor(log, apiRatelimits, apiBurstLimits).UnaryServerInterceptor
 		// append the rate limit interceptor to the list of interceptors
 		interceptors = append(interceptors, rateLimitInterceptor)
 	}
