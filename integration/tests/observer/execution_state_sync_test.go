@@ -146,7 +146,7 @@ func (s *ExecutionStateSyncSuite) TestHappyPath() {
 
 	// start an execution data service using the Access Node's execution data db
 	an := s.net.ContainerByID(s.bridgeID)
-	eds, ctx := s.nodeExecutionDataService(an)
+	eds, ctx := s.getTestExecutionDataServiceNode(an)
 
 	// setup storage objects needed to get the execution data id
 	db, err := an.DB()
@@ -174,7 +174,7 @@ func (s *ExecutionStateSyncSuite) TestHappyPath() {
 	}
 }
 
-func (s *ExecutionStateSyncSuite) nodeExecutionDataService(node *testnet.Container) (state_synchronization.ExecutionDataService, irrecoverable.SignalerContext) {
+func (s *ExecutionStateSyncSuite) getTestExecutionDataServiceNode(node *testnet.Container) (state_synchronization.ExecutionDataService, irrecoverable.SignalerContext) {
 	ctx, errChan := irrecoverable.WithSignaler(s.ctx)
 	go func() {
 		select {
