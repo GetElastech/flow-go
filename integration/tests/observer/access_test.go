@@ -54,6 +54,10 @@ func (suite *AccessSuite) SetupTest() {
 		testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.InfoLevel)),
 	}
 
+	// Add an observer node
+	obsConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.InfoLevel), testnet.AsObserver())
+	nodeConfigs = append(nodeConfigs, obsConfig)
+
 	// need one dummy execution node (unused ghost)
 	exeConfig := testnet.NewNodeConfig(flow.RoleExecution, testnet.WithLogLevel(zerolog.FatalLevel), testnet.AsGhost())
 	nodeConfigs = append(nodeConfigs, exeConfig)
@@ -86,6 +90,13 @@ func (suite *AccessSuite) SetupTest() {
 }
 
 func (suite *AccessSuite) TestHTTPProxyPortOpen() {
+	httpProxyAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIProxyPort])
+	conn, err := net.DialTimeout("tcp", httpProxyAddress, 1*time.Second)
+	require.NoError(suite.T(), err, "http proxy port not open on the access node")
+	conn.Close()
+}
+
+func (suite *AccessSuite) TestObserverPortOpen() {
 	httpProxyAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIProxyPort])
 	conn, err := net.DialTimeout("tcp", httpProxyAddress, 1*time.Second)
 	require.NoError(suite.T(), err, "http proxy port not open on the access node")

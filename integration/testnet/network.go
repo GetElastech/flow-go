@@ -531,6 +531,31 @@ func WithDebugImage(debug bool) func(config *NodeConfig) {
 	}
 }
 
+const (
+	AccessPubNetworkPort     = 1234
+	DefaultAccessGatewayName = "access_1"
+	DefaultObserverName      = "observer"
+)
+
+func AsObserver() func(config *NodeConfig) {
+	return func(config *NodeConfig) {
+		agPublicKey, err := GetAccessGatewayPublicKeyString("0xffffffff")
+		if err != nil {
+			panic(err)
+		}
+		observerName := fmt.Sprintf("%s_%d", DefaultObserverName, 1)
+		config.AdditionalFlags = append(config.AdditionalFlags, "--topology=fully-connected")
+		config.AdditionalFlags = append(config.AdditionalFlags,
+			fmt.Sprintf("--bootstrap-node-addresses=%s:%d", DefaultAccessGatewayName, AccessPubNetworkPort))
+		config.AdditionalFlags = append(config.AdditionalFlags,
+			fmt.Sprintf("--bootstrap-node-public-keys=%s", agPublicKey))
+		config.AdditionalFlags = append(config.AdditionalFlags,
+			fmt.Sprintf("--observer-networking-key-path=/bootstrap/private-root-information/%s_key", observerName))
+		config.AdditionalFlags = append(config.AdditionalFlags,
+			fmt.Sprintf("--bind=0.0.0.0:0"))
+	}
+}
+
 // AsCorrupted sets the configuration of a node as corrupted, hence the node is pulling
 // the corrupted image of its role at the build time.
 // A corrupted image is running with Corruptible Conduit Factory hence enabling BFT testing
@@ -1479,4 +1504,21 @@ func writePrivateKeyFiles(bootstrapDir string, chainID flow.ChainID, nodeInfos [
 	}
 
 	return nil
+}
+
+func GetAccessGatewayPublicKeyString(publicKey string) (string, error) {
+	if len(publicKey) > 2 {
+		return publicKey[2:], nil
+	}
+	return "", fmt.Errorf("id too short")
+}
+
+func GetAccessGatewayPublicKey(flowNodeContainerConfigs []ContainerConfig) (string, error) {
+	for _, container := range flowNodeContainerConfigs {
+		if container.ContainerName == DefaultAccessGatewayName {
+			// remove the "0x"..0000 portion of the key
+			return GetAccessGatewayPublicKeyString(container.NetworkPubKey().String())
+		}
+	}
+	return "", fmt.Errorf("Unable to find public key for Access Gateway expected in container '%s'", DefaultAccessGatewayName)
 }
