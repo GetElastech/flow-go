@@ -16,11 +16,11 @@ import (
 	"github.com/onflow/flow-go/utils/unittest"
 )
 
-func TestAccess(t *testing.T) {
-	suite.Run(t, new(AccessSuite))
+func TestObserver(t *testing.T) {
+	suite.Run(t, new(ObserverSuite))
 }
 
-type AccessSuite struct {
+type ObserverSuite struct {
 	suite.Suite
 
 	log zerolog.Logger
@@ -32,14 +32,14 @@ type AccessSuite struct {
 	net *testnet.FlowNetwork
 }
 
-func (s *AccessSuite) TearDownTest() {
+func (s *ObserverSuite) TearDownTest() {
 	s.log.Info().Msg("================> Start TearDownTest")
 	s.net.Remove()
 	s.cancel()
 	s.log.Info().Msg("================> Finish TearDownTest")
 }
 
-func (suite *AccessSuite) SetupTest() {
+func (suite *ObserverSuite) SetupTest() {
 	logger := unittest.LoggerWithLevel(zerolog.InfoLevel).With().
 		Str("testfile", "api.go").
 		Str("testcase", suite.T().Name()).
@@ -89,16 +89,16 @@ func (suite *AccessSuite) SetupTest() {
 	suite.net.Start(suite.ctx)
 }
 
-func (suite *AccessSuite) TestHTTPProxyPortOpen() {
+func (suite *ObserverSuite) TestHTTPProxyPortOpen() {
 	httpProxyAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIProxyPort])
 	conn, err := net.DialTimeout("tcp", httpProxyAddress, 1*time.Second)
 	require.NoError(suite.T(), err, "http proxy port not open on the access node")
 	conn.Close()
 }
 
-func (suite *AccessSuite) TestObserverPortOpen() {
+func (suite *ObserverSuite) TestObserverPortOpen() {
 	httpProxyAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIProxyPort])
 	conn, err := net.DialTimeout("tcp", httpProxyAddress, 1*time.Second)
-	require.NoError(suite.T(), err, "http proxy port not open on the access node")
+	require.NoError(suite.T(), err, "http proxy port not open on the observer node")
 	conn.Close()
 }
