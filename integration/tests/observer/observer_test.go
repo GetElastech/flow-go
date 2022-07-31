@@ -93,14 +93,14 @@ func (suite *ObserverSuite) SetupTest() {
 	suite.net.Start(suite.ctx)
 }
 
-func (suite *ObserverSuite) TestHTTPProxyPortOpen() {
+func (suite *ObserverSuite) _TestHTTPProxyPortOpen() {
 	httpProxyAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIProxyPort])
 	conn, err := net.DialTimeout("tcp", httpProxyAddress, 1*time.Second)
 	require.NoError(suite.T(), err, "http proxy port not open on the access node")
 	conn.Close()
 }
 
-func (suite *ObserverSuite) TestObserverPortOpen() {
+func (suite *ObserverSuite) _TestObserverPortOpen() {
 	httpProxyAddress := fmt.Sprintf(":%s", suite.net.AccessPorts[testnet.AccessNodeAPIProxyPort])
 	conn, err := net.DialTimeout("tcp", httpProxyAddress, 1*time.Second)
 	require.NoError(suite.T(), err, "http proxy port not open on the observer node")
