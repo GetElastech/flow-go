@@ -54,10 +54,13 @@ func (suite *ObserverSuite) SetupTest() {
 		testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.InfoLevel)),
 	}
 
+	// Add an access node for observer access
+	bsConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.InfoLevel), testnet.AsBootstrap())
+	nodeConfigs = append(nodeConfigs, bsConfig)
+
 	// Add an observer node
 	//obsConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.InfoLevel), testnet.AsObserver())
-	obsConfig := testnet.NewNodeConfig(flow.RoleAccess, testnet.WithLogLevel(zerolog.InfoLevel))
-	nodeConfigs = append(nodeConfigs, obsConfig)
+	//nodeConfigs = append(nodeConfigs, obsConfig)
 
 	// need one dummy execution node (unused ghost)
 	exeConfig := testnet.NewNodeConfig(flow.RoleExecution, testnet.WithLogLevel(zerolog.FatalLevel), testnet.AsGhost())
