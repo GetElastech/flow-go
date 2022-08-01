@@ -48,6 +48,8 @@ type ExecutionStateSyncSuite struct {
 }
 
 func (s *ExecutionStateSyncSuite) SetupTest() {
+	s.cancelObserver = func() {
+	}
 	logger := unittest.LoggerWithLevel(zerolog.InfoLevel).With().
 		Str("testfile", "execution_state_sync_test.go").
 		Str("testcase", s.T().Name()).
@@ -65,8 +67,6 @@ func (s *ExecutionStateSyncSuite) SetupTest() {
 	s.startObserver(s.ctx)
 
 	s.Track(s.T(), s.ctx, s.Ghost())
-
-	s.cancelObserver()
 }
 
 func (s *ExecutionStateSyncSuite) TearDownTest() {
